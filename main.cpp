@@ -52,6 +52,7 @@ void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
 
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region Windowの生成
@@ -227,6 +228,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		else {
 			//ゲームの処理
+#pragma region コマンドを積み込み確定させる
+			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
+
+			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
+			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+
+			hr = commandList->Close();
+			assert(SUCCEEDED(hr));
+#pragma endregion
+
+#pragma region コマンドをキックする
+			ID3D12CommandList* commandLists[] = { commandList };
+			commandQueue->ExecuteCommandLists(1, commandLists);
+
+			swapChain->Present(1, 0);
+
+			hr = commandAllocator->Reset();
+			assert(SUCCEEDED(hr));
+
+			hr = commandList->Reset(commandAllocator, nullptr);
+			assert(SUCCEEDED(hr));
+#pragma endregion
+
 		}
 	}
 
