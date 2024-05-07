@@ -9,6 +9,7 @@
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 
+#pragma region ウィンドウプロージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	switch (msg) {
 	case WM_DESTROY:
@@ -17,6 +18,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	}
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
+#pragma endregion
 
 #pragma region ConvertString
 std::wstring ConvertString(const std::string& str) {
@@ -92,6 +94,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ShowWindow(hwnd, SW_SHOW);
 #pragma endregion
 
+#ifdef _DEBUG
+
+#pragma region DebugLayer
+	ID3D12Debug1* debugController = nullptr;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+		debugController->EnableDebugLayer();
+		debugController->SetEnableGPUBasedValidation(TRUE);
+	}
+#pragma endregion
+
+#endif
+
+
 #pragma region DXGIFactoryの生成
 	IDXGIFactory7* dxgiFactory = nullptr;
 
@@ -138,6 +153,37 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n");
 #pragma endregion
+
+#ifdef _DEBUG
+
+#pragma region エラー・警告時に停止
+	ID3D12InfoQueue* infoQueue = nullptr;
+
+	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+
+#pragma region エラーと警告の抑制
+		D3D12_MESSAGE_ID denyIds[] = { D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
+
+		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
+		D3D12_INFO_QUEUE_FILTER filter{};
+		filter.DenyList.NumIDs = _countof(denyIds);
+		filter.DenyList.pIDList = denyIds;
+		filter.DenyList.NumSeverities = _countof(severities);
+		filter.DenyList.pSeverityList = severities;
+
+		infoQueue->PushStorageFilter(&filter);
+#pragma endregion
+
+		infoQueue->Release();
+	}
+#pragma endregion
+
+#endif
 
 #pragma region コマンドキューの生成
 	ID3D12CommandQueue* commandQueue = nullptr;
@@ -216,7 +262,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
 #pragma endregion
 
-//文字出力
+#pragma region FenceとEventを生成する
+	ID3D12Fence* fence = nullptr;
+	uint64_t fenceValue = 0;
+	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+	assert(SUCCEEDED(hr));
+
+	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	assert(fenceEvent != nullptr);
+#pragma endregion
+
+#pragma region GPUにSignalを送る
+	fenceValue++;
+
+	commandQueue->Signal(fence, fenceValue);
+#pragma endregion
+
+#pragma region Fenceの値を確認してGPUを待つ
+	if (fence->GetCompletedValue() < fenceValue) {
+		fence->SetEventOnCompletion(fenceValue, fenceEvent);
+
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+#pragma endregion
+
+	//文字出力
 	OutputDebugStringA("Hello,DirectX!\n");
 
 	MSG msg{};
@@ -231,12 +301,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
+#pragma region TransitionBarrierを貼る
+			D3D12_RESOURCE_BARRIER barrier{};
+
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+			barrier.Transition.pResource = swapChainResources[backBufferIndex];
+
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+			commandList->ResourceBarrier(1, &barrier);
+#pragma endregion
+
 			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
 
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
 			hr = commandList->Close();
+#pragma region 画面表示をできるようにする
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+			commandList->ResourceBarrier(1, &barrier);
+#pragma endregion
 			assert(SUCCEEDED(hr));
 #pragma endregion
 
