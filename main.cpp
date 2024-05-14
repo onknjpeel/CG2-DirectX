@@ -5,11 +5,13 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <cassert>
+#include <dxgidebug.h>
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
+#pragma comment(lib,"dxguid.lib")
 
-#pragma region ウィンドウプロージャ
+#pragma region ウィンドウプロシージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	switch (msg) {
 	case WM_DESTROY:
@@ -50,15 +52,15 @@ std::string ConvertString(const std::wstring& str) {
 }
 #pragma endregion
 
+#pragma region 出力ウィンドウに文字を出す
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
-
+#pragma endregion
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-#pragma region Windowの生成
-	//ウィンドウクラスの登録
+#pragma region ウィンドウクラスの登録
 	WNDCLASS wc{};
 
 	wc.lpfnWndProc = WindowProc;
@@ -67,16 +69,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 
 	RegisterClass(&wc);
+#pragma endregion
 
-	//ウィンドウサイズを決める
+#pragma region ウィンドウサイズを決める
 	const int32_t kClientWidth = 1280;
 	const int32_t kClientHeight = 720;
 
 	RECT wrc = { 0,0,kClientWidth,kClientHeight };
 
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
+#pragma endregion
 
-	//ウィンドウ生成と表示
+#pragma region ウィンドウ生成と表示
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName,
 		L"CG2",
@@ -164,7 +168,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+		//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 
 #pragma region エラーと警告の抑制
 		D3D12_MESSAGE_ID denyIds[] = { D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
@@ -215,7 +219,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
 	swapChainDesc.Width = kClientWidth;
 	swapChainDesc.Height = kClientHeight;
-	swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.BufferCount = 2;
@@ -272,20 +276,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(fenceEvent != nullptr);
 #pragma endregion
 
-#pragma region GPUにSignalを送る
-	fenceValue++;
-
-	commandQueue->Signal(fence, fenceValue);
-#pragma endregion
-
-#pragma region Fenceの値を確認してGPUを待つ
-	if (fence->GetCompletedValue() < fenceValue) {
-		fence->SetEventOnCompletion(fenceValue, fenceEvent);
-
-		WaitForSingleObject(fenceEvent, INFINITE);
-	}
-#pragma endregion
-
 	//文字出力
 	OutputDebugStringA("Hello,DirectX!\n");
 
@@ -321,8 +311,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
-
-			hr = commandList->Close();
+			
 #pragma region 画面表示をできるようにする
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
@@ -330,6 +319,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			commandList->ResourceBarrier(1, &barrier);
 #pragma endregion
+			hr = commandList->Close();
+			
 			assert(SUCCEEDED(hr));
 #pragma endregion
 
@@ -338,6 +329,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandQueue->ExecuteCommandLists(1, commandLists);
 
 			swapChain->Present(1, 0);
+
+#pragma region GPUにSignalを送る
+	fenceValue++;
+
+	commandQueue->Signal(fence, fenceValue);
+
+#pragma endregion
+
+#pragma region Fenceの値を確認してGPUを待つ
+	if (fence->GetCompletedValue() < fenceValue) {
+		fence->SetEventOnCompletion(fenceValue, fenceEvent);
+
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+#pragma endregion
 
 			hr = commandAllocator->Reset();
 			assert(SUCCEEDED(hr));
@@ -352,6 +358,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::string str0{ "STRING!!!" };
 
 	std::string str1{ std::to_string(10) };
+
+#pragma region 解放処理
+	CloseHandle(fenceEvent);
+	fence->Release();
+	rtvDescriptorHeap->Release();
+	swapChainResources[0]->Release();
+	swapChainResources[1]->Release();
+	swapChain->Release();
+	commandList->Release();
+	commandAllocator->Release();
+	commandQueue->Release();
+	device->Release();
+	useAdapter->Release();
+	dxgiFactory->Release();
+#ifdef _DEBUG
+	debugController->Release();
+#endif
+	CloseWindow(hwnd);
+#pragma endregion
+
+#pragma region ReportLiveObjects
+	IDXGIDebug1* debug;
+	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
+		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+		debug->Release();
+	}
+#pragma endregion
 
 	return 0;
 }
