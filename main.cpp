@@ -8,6 +8,10 @@
 #include <dxgidebug.h>
 #include <dxcapi.h>
 #include <cmath>
+#include "externals/imgui/imgui.h"
+#include "externals/imgui/imgui_impl_dx12.h"
+#include "externals/imgui/imgui_impl_win32.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
@@ -37,6 +41,7 @@ struct Transform {
 	Vector3 translate;
 };
 
+#pragma region 行列に関する関数
 #pragma region 単位行列
 Matrix4x4 MakeIdentity4x4() {
 	Matrix4x4 result = {
@@ -218,6 +223,7 @@ Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip
 	return result;
 }
 #pragma endregion
+#pragma endregion
 
 #pragma region Resource作成の関数化(CreateBufferResource)
 ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
@@ -246,8 +252,29 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
 }
 #pragma endregion
 
+#pragma region DescriptorHeapの作成関数
+ID3D12DescriptorHeap* CreateDescriptorHeap(
+	ID3D12Device* device,
+	D3D12_DESCRIPTOR_HEAP_TYPE heapType,
+	UINT numDescriptors,
+	bool shaderVisible
+) {
+	ID3D12DescriptorHeap* descriptorHeap = nullptr;
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc{};
+	descriptorHeapDesc.Type = heapType;
+	descriptorHeapDesc.NumDescriptors = numDescriptors;
+	descriptorHeapDesc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	HRESULT hr = device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&descriptorHeap));
+	assert(SUCCEEDED(hr));
+	return descriptorHeap;
+}
+#pragma endregion
+
 #pragma region ウィンドウプロシージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+		return true;
+	}
 	switch (msg) {
 	case WM_DESTROY:
 		PostQuitMessage(0);
@@ -542,14 +569,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr));
 #pragma endregion
 
-#pragma region DescriptorHeapの生成
-	ID3D12DescriptorHeap* rtvDescriptorHeap = nullptr;
-	D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc{};
-	rtvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvDescriptorHeapDesc.NumDescriptors = 2;
-	hr = device->CreateDescriptorHeap(&rtvDescriptorHeapDesc, IID_PPV_ARGS(&rtvDescriptorHeap));
+#pragma region rtvDescriptorHeapの生成
+	ID3D12DescriptorHeap* rtvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+#pragma endregion
 
-	assert(SUCCEEDED(hr));
+#pragma region srvDescriptorHeapの生成
+	ID3D12DescriptorHeap* srvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 120, true);
 #pragma endregion
 
 #pragma region SwapChainからResourceを引っ張ってくる
@@ -764,6 +789,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	MSG msg{};
 
+#pragma region ImGuiの初期化
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(hwnd);
+	ImGui_ImplDX12_Init(device,
+		swapChainDesc.BufferCount,
+		rtvDesc.Format,
+		srvDescriptorHeap,
+		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+#pragma endregion
+
 	while (msg.message != WM_QUIT) {
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
@@ -771,6 +809,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		else {
 			//ゲームの処理
+#pragma region フレームが始まる旨を告げる
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+#pragma endregion
+
 #pragma region Transformを使ってCBufferを更新する
 			transform.rotate.y += 0.03f;
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
@@ -783,6 +827,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+#pragma region ImGuiの処理
+			ImGui::ShowDemoWindow();
+#pragma endregion
+
+#pragma region ImGuiの内部コマンドを生成
+			ImGui::Render();
+#pragma endregion
 
 #pragma region TransitionBarrierを貼る
 			D3D12_RESOURCE_BARRIER barrier{};
@@ -805,6 +857,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
+#pragma region 描画用のDescriptorHeapを設定(ImGui)
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap };
+			commandList->SetDescriptorHeaps(1, descriptorHeaps);
+#pragma endregion
+
 #pragma region コマンドを積む
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
@@ -821,6 +878,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			commandList->DrawInstanced(3, 1, 0, 0);
+#pragma endregion
+
+#pragma region ImGuiの描画コマンドを積む
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 #pragma endregion
 
 #pragma region 画面表示をできるようにする
@@ -865,6 +926,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		}
 	}
+
+#pragma region ImGuiの終了処理
+		ImGui_ImplDX12_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
+#pragma endregion
 
 	std::string str0{ "STRING!!!" };
 
