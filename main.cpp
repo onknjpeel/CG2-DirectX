@@ -1,3 +1,4 @@
+#pragma region インクルードゾーン
 #include <Windows.h>
 #include <cstdint>
 #include <string>
@@ -11,12 +12,16 @@
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
+#pragma endregion
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+#pragma region プラグマコメントゾーン
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib,"dxcompiler.lib")
+#pragma endregion
 
 struct Vector3 {
 	float x;
@@ -829,9 +834,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		else {
 			//ゲームの処理
 #pragma region フレームが始まる旨を告げる
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
+			ImGui_ImplDX12_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
 #pragma endregion
 
 #pragma region Transformを使ってCBufferを更新する
@@ -862,9 +867,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region SRT変更(三角形)
 			ImGui::Begin("SRT");
-			ImGui::SliderFloat3("scale", inputScale, 0, 1);
-			ImGui::SliderFloat3("rotate", inputRotate, 0, 1);
-			ImGui::SliderFloat3("translate", inputTranslate, 0, 1);
+			ImGui::SliderFloat3("scale", inputScale, 0, 4);
+			ImGui::SliderFloat3("rotate", inputRotate, 0, 4);
+			ImGui::SliderFloat3("translate", inputTranslate, 0, 4);
 			transform.scale.x = inputScale[0];
 			transform.scale.y = inputScale[1];
 			transform.scale.z = inputScale[2];
@@ -991,9 +996,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	}
 
 #pragma region ImGuiの終了処理
-		ImGui_ImplDX12_Shutdown();
-		ImGui_ImplWin32_Shutdown();
-		ImGui::DestroyContext();
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 #pragma endregion
 
 	std::string str0{ "STRING!!!" };
