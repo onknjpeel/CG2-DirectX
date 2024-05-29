@@ -397,6 +397,25 @@ Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-5.0f} };
 #pragma endregion
 
+#pragma region inputColor
+float r = 1.0f;
+float g = 0.0f;
+float b = 0.0f;
+float inputColor[3] = { r,g,b };
+#pragma endregion
+
+#pragma region inputSRT
+float inputScale[3] = { transform.scale.x,transform.scale.y ,transform.scale.z };
+float inputRotate[3] = { transform.rotate.x,transform.rotate.y ,transform.rotate.z };
+float inputTranslate[3] = { transform.translate.x,transform.translate.y ,transform.translate.z };
+#pragma endregion
+
+#pragma region inputCamera
+float inputCameraScale[3] = { cameraTransform.scale.x,cameraTransform.scale.y ,cameraTransform.scale.z };
+float inputCameraRotate[3] = { cameraTransform.rotate.x,cameraTransform.rotate.y ,cameraTransform.rotate.z };
+float inputCameraTranslate[3] = { cameraTransform.translate.x,cameraTransform.translate.y ,cameraTransform.translate.z };
+#pragma endregion
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region ウィンドウクラスの登録
@@ -830,6 +849,50 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region ImGuiの処理
 			ImGui::ShowDemoWindow();
+
+#pragma region 色変更
+			ImGui::Begin("color");
+			ImGui::SliderFloat3("color", inputColor, 0, 1);
+			ImGui::ColorPicker3("colorPick", inputColor, 0);
+			materialData->x = inputColor[0];
+			materialData->y = inputColor[1];
+			materialData->z = inputColor[2];
+			ImGui::End();
+#pragma endregion
+
+#pragma region SRT変更(三角形)
+			ImGui::Begin("SRT");
+			ImGui::SliderFloat3("scale", inputScale, 0, 1);
+			ImGui::SliderFloat3("rotate", inputRotate, 0, 1);
+			ImGui::SliderFloat3("translate", inputTranslate, 0, 1);
+			transform.scale.x = inputScale[0];
+			transform.scale.y = inputScale[1];
+			transform.scale.z = inputScale[2];
+			transform.rotate.x = inputRotate[0];
+			transform.rotate.y = inputRotate[1];
+			transform.rotate.z = inputRotate[2];
+			transform.translate.x = inputTranslate[0];
+			transform.translate.y = inputTranslate[1];
+			transform.translate.z = inputTranslate[2];
+			ImGui::End();
+#pragma endregion
+
+#pragma region SRT変更(カメラ)
+			ImGui::Begin("camera");
+			ImGui::SliderFloat3("cameraScale", inputCameraScale, -1, 1);
+			ImGui::SliderFloat3("cameraRotate", inputCameraRotate, -1, 1);
+			ImGui::SliderFloat3("cameraTranslate", inputCameraTranslate, -5, 0);
+			cameraTransform.scale.x = inputCameraScale[0];
+			cameraTransform.scale.y = inputCameraScale[1];
+			cameraTransform.scale.z = inputCameraScale[2];
+			cameraTransform.rotate.x = inputCameraRotate[0];
+			cameraTransform.rotate.y = inputCameraRotate[1];
+			cameraTransform.rotate.z = inputCameraRotate[2];
+			cameraTransform.translate.x = inputCameraTranslate[0];
+			cameraTransform.translate.y = inputCameraTranslate[1];
+			cameraTransform.translate.z = inputCameraTranslate[2];
+			ImGui::End();
+#pragma endregion
 #pragma endregion
 
 #pragma region ImGuiの内部コマンドを生成
