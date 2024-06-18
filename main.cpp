@@ -231,6 +231,20 @@ Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip
 	return result;
 }
 #pragma endregion
+
+#pragma region 平行投影行列
+Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
+	Matrix4x4 result;
+	result = {
+		2 / (right - left),0,0,0,
+		0,2 / (top - bottom),0,0,
+		0,0,1 / (farClip - nearClip),0,
+		(left + right) / (left - right),(top + bottom) / (top - bottom),nearClip / (nearClip - farClip),1
+	};
+	return result;
+}
+#pragma endregion
+
 #pragma endregion
 
 #pragma region Resource作成の関数化(CreateBufferResource)
@@ -399,6 +413,10 @@ IDxcBlob* CompileShader(
 
 #pragma region Transform変数
 Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
+#pragma endregion
+
+#pragma region TransformSprite
+Transform transformSprite{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 #pragma endregion
 
 #pragma region cameraTransform変数
@@ -868,7 +886,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 #pragma endregion
@@ -885,6 +903,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region VertexResourceを生成
 	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * 6);
+#pragma endregion
+
+#pragma region VertexResourceSpriteを生成
+	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
 #pragma endregion
 
 #pragma region Material用のResourceを作る
@@ -907,6 +929,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	*transformationMatrixData = MakeIdentity4x4();
 #pragma endregion
 
+#pragma region TransformationMatrix用のResourceを作る(Sprite)
+	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
+
+	Matrix4x4* transformationMatrixDataSprite = nullptr;
+
+	transformationMatrixResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataSprite));
+
+	*transformationMatrixDataSprite = MakeIdentity4x4();
+#pragma endregion
+
 #pragma region VertexBufferViewを作成
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 
@@ -915,6 +947,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexBufferView.SizeInBytes = sizeof(VertexData) * 6;
 
 	vertexBufferView.StrideInBytes = sizeof(VertexData);
+#pragma endregion
+
+#pragma region VertexBufferViewSpriteを作成
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
+
+	vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
+
+	vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 6;
+
+	vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
 #pragma endregion
 
 #pragma region Resourceにデータを書き込む(頂点データの更新)
@@ -942,6 +984,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexData[5].texcoord = { 1.0f,1.0f };
 #pragma endregion
 
+#pragma endregion
+
+#pragma region スプライトの頂点データ
+	VertexData* vertexDataSprite = nullptr;
+	vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
+
+	vertexDataSprite[0].position = { 0.0f,360.0f,0.0f,1.0f };
+	vertexDataSprite[0].texcoord = { 0.0f,1.0f };
+	vertexDataSprite[1].position = { 0.0f,0.0f,0.0f,1.0f };
+	vertexDataSprite[1].texcoord = { 0.0f,0.0f };
+	vertexDataSprite[2].position = { 640.0f,360.0f,0.0f,1.0f };
+	vertexDataSprite[2].texcoord = { 1.0f,1.0f };
+
+	vertexDataSprite[3].position = { 0.0f,0.0f,0.0f,1.0f };
+	vertexDataSprite[3].texcoord = { 0.0f,0.0f };
+	vertexDataSprite[4].position = { 640.0f,0.0f,0.0f,1.0f };
+	vertexDataSprite[4].texcoord = { 1.0f,0.0f };
+	vertexDataSprite[5].position = { 640.0f,360.0f,0.0f,1.0f };
+	vertexDataSprite[5].texcoord = { 1.0f,1.0f };
 #pragma endregion
 
 #pragma region CreateDepthStencilextureResourceを作る
@@ -1062,6 +1123,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
 			Matrix4x4 worldProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			*transformationMatrixData = worldProjectionMatrix;
+#pragma endregion
+
+#pragma region WVPMatrixを作って書き込む//sprite
+			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+			Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
+			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
+			Matrix4x4 worldProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+			*transformationMatrixDataSprite = worldProjectionMatrixSprite;
 #pragma endregion
 
 #pragma region コマンドを積み込み確定させる
