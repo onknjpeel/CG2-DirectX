@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+
 #include <Windows.h>
 #include <cstdint>
 #include <string>
@@ -8,6 +10,7 @@
 #include <dxgidebug.h>
 #include <dxcapi.h>
 #include <cmath>
+#include <math.h>
 #include <vector>
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
@@ -986,6 +989,87 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
+	uint32_t latIndex = 16;
+	uint32_t kSubdivision = 16;
+	uint32_t lonIndex = 16;
+	uint32_t startIndex = (latIndex * kSubdivision + lonIndex) * 6;
+
+	const float kLonEvery = float(M_PI * 2.0f) / float(kSubdivision);
+
+	const float kLatEvery = float(M_PI) / float(kSubdivision);
+
+	float dTheta = float(M_PI / kSubdivision);
+	float dFi = float(2 * M_PI / kSubdivision);
+
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = float(-M_PI) / 2.0f + kLatEvery * latIndex;
+
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			float lon = lonIndex * kLonEvery;
+
+			VertexData vertA = {
+				{std::cos(lat) * std::cos(lon),
+				std::sin(lat),
+				std::cos(lat) * std::sin(lon),
+				1.0f },
+				{float(lonIndex) / float(kSubdivision),
+				1.0f - float(latIndex) / float(kSubdivision)}
+			};
+			VertexData vertB = {
+				{std::cos(lat+dTheta)*std::cos(lon),std::sin(lat + dTheta),std::cos(lat + dTheta)},
+				{float(lonIndex) / float(kSubdivision),
+					1.0f - float(latIndex) / float(kSubdivision)}
+			};
+			VertexData vertC = {
+				{std::cos(lat)*std::cos(lon+dFi),std::sin(lat),std::cos(lat)*std::sin(lon+dFi)},
+				{float(lonIndex) / float(kSubdivision),
+					1.0f - float(latIndex) / float(kSubdivision)}
+			};
+			VertexData vertD = {
+				{std::cos(lat+dTheta)*std::cos(lon+dFi),std::sin(lat+dTheta),std::cos(lat+dTheta)*std::sin(lon+dFi)},
+				{float(lonIndex) / float(kSubdivision),
+					1.0f - float(latIndex) / float(kSubdivision)}
+			};
+
+			vertexData[startIndex].position.x = std::cos(lat) * std::cos(lon);
+			vertexData[startIndex].position.y = std::sin(lat);
+			vertexData[startIndex].position.z = std::cos(lat) * std::sin(lon);
+			vertexData[startIndex].position.w = 1.0f;
+			vertexData[startIndex].texcoord = { u,v };
+
+			vertexData[startIndex + 1].position.x = std::cos(lat) * std::cos(lon);
+			vertexData[startIndex + 1].position.y = std::sin(lat);
+			vertexData[startIndex + 1].position.z = std::cos(lat) * std::sin(lon);
+			vertexData[startIndex + 1].position.w = 1.0f;
+			vertexData[startIndex + 1].texcoord = { u,v };
+
+			vertexData[startIndex + 2].position.x = std::cos(lat) * std::cos(lon);
+			vertexData[startIndex + 2].position.y = std::sin(lat);
+			vertexData[startIndex + 2].position.z = std::cos(lat) * std::sin(lon);
+			vertexData[startIndex + 2].position.w = 1.0f;
+			vertexData[startIndex + 2].texcoord = { u,v };
+
+
+			vertexData[startIndex + 3].position.x = std::cos(lat) * std::cos(lon);
+			vertexData[startIndex + 3].position.y = std::sin(lat);
+			vertexData[startIndex + 3].position.z = std::cos(lat) * std::sin(lon);
+			vertexData[startIndex + 3].position.w = 1.0f;
+			vertexData[startIndex + 3].texcoord = { u,v };
+
+			vertexData[startIndex + 4].position.x = std::cos(lat) * std::cos(lon);
+			vertexData[startIndex + 4].position.y = std::sin(lat);
+			vertexData[startIndex + 4].position.z = std::cos(lat) * std::sin(lon);
+			vertexData[startIndex + 4].position.w = 1.0f;
+			vertexData[startIndex + 4].texcoord = { u,v };
+
+			vertexData[startIndex + 5].position.x = std::cos(lat) * std::cos(lon);
+			vertexData[startIndex + 5].position.y = std::sin(lat);
+			vertexData[startIndex + 5].position.z = std::cos(lat) * std::sin(lon);
+			vertexData[startIndex + 5].position.w = 1.0f;
+			vertexData[startIndex + 5].texcoord = { u,v };
+		}
+	}
+
 #pragma region スプライトの頂点データ
 	VertexData* vertexDataSprite = nullptr;
 	vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
@@ -1192,7 +1276,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 #pragma endregion
 
-			commandList->DrawInstanced(6, 1, 0, 0);
+			commandList->DrawInstanced(startIndex, 1, 0, 0);
 
 #pragma region Sprite描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
