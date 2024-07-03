@@ -422,6 +422,10 @@ Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 Transform transformSprite{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 #pragma endregion
 
+#pragma region TriangleのTlansform
+Transform transformTriangle{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
+#pragma endregion
+
 #pragma region cameraTransform変数
 Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} };
 #pragma endregion
@@ -499,10 +503,11 @@ ID3D12Resource* UploadTextureData(ID3D12Resource* texture, const DirectX::Scratc
 }
 #pragma endregion
 
-#pragma region 頂点データの拡張
+#pragma region 頂点データの拡張(Ver.05_03)
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
+	Vector3 normal;
 };
 #pragma endregion
 
@@ -908,7 +913,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region InputLayoutの設定(拡張)
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = {};
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
 	inputElementDescs[0].SemanticIndex = 0;
 	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -917,6 +922,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	inputElementDescs[1].SemanticIndex = 0;
 	inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
 	inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+	inputElementDescs[2].SemanticName = "NORMAL";
+	inputElementDescs[2].SemanticIndex = 0;
+	inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
@@ -946,9 +955,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(pixelShaderBlob != nullptr);
 #pragma endregion
 
+#pragma region 球作成用変数宣言
 	uint32_t kSubdivision = 16;
 
 	uint32_t startIndex = kSubdivision * kSubdivision * 6;
+#pragma endregion
 
 #pragma region VertexResourceを生成
 	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * startIndex);
@@ -956,6 +967,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region VertexResourceSpriteを生成
 	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
+#pragma endregion
+
+#pragma region 三角形二枚用のVertexResource
+	ID3D12Resource* vertexResourceTriangle = CreateBufferResource(device, sizeof(VertexData) * 6);
 #pragma endregion
 
 #pragma region Material用のResourceを作る
@@ -988,6 +1003,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	*transformationMatrixDataSprite = MakeIdentity4x4();
 #pragma endregion
 
+#pragma region TransformationMatrix用のResourceを作る(三角形)
+	ID3D12Resource* transformationMatrixResourceTriangle = CreateBufferResource(device, sizeof(Matrix4x4));
+
+	Matrix4x4* transformationMatrixDataTriangle = nullptr;
+
+	transformationMatrixResourceTriangle->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataTriangle));
+
+	*transformationMatrixDataTriangle = MakeIdentity4x4();
+#pragma endregion
+
 #pragma region VertexBufferViewを作成
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 
@@ -1006,6 +1031,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 6;
 
 	vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
+#pragma endregion
+
+#pragma region VertexBufferViewTriangleを作成
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewTriangle{};
+
+	vertexBufferViewTriangle.BufferLocation = vertexResourceTriangle->GetGPUVirtualAddress();
+
+	vertexBufferViewTriangle.SizeInBytes = sizeof(VertexData) * 6;
+
+	vertexBufferViewTriangle.StrideInBytes = sizeof(VertexData);
 #pragma endregion
 
 #pragma region Resourceにデータを書き込む(頂点データの更新)
@@ -1032,7 +1067,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				std::cos(lat) * std::sin(lon),
 				1.0f },
 				{float(lonIndex) / float(kSubdivision),
-				1.0f - float(latIndex) / float(kSubdivision)}
+				1.0f - float(latIndex) / float(kSubdivision)},
+				{vertA.position.x,vertA.position.y,vertA.position.z}
 			};
 			VertexData vertB = {
 				{std::cos(lat + kLatEvery) * std::cos(lon),
@@ -1040,7 +1076,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				std::cos(lat + kLatEvery) * std::sin(lon),
 				1.0f},
 				{float(lonIndex) / float(kSubdivision),
-					1.0f - float(latIndex + 1) / float(kSubdivision)}
+					1.0f - float(latIndex + 1) / float(kSubdivision)},
+				{vertB.position.x,vertB.position.y,vertB.position.z}
 			};
 			VertexData vertC = {
 				{std::cos(lat) * std::cos(lon + kLonEvery),
@@ -1048,7 +1085,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				std::cos(lat) * std::sin(lon + kLonEvery),
 				1.0f},
 				{float(lonIndex + 1) / float(kSubdivision),
-					1.0f - float(latIndex) / float(kSubdivision)}
+					1.0f - float(latIndex) / float(kSubdivision)},
+				{vertC.position.x,vertC.position.y,vertC.position.z}
 			};
 			VertexData vertD = {
 				{std::cos(lat + kLatEvery) * std::cos(lon + kLonEvery),
@@ -1056,7 +1094,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				std::cos(lat + kLatEvery) * std::sin(lon + kLonEvery),
 				1.0f},
 				{float(lonIndex + 1) / float(kSubdivision),
-					1.0f - float(latIndex + 1) / float(kSubdivision)}
+					1.0f - float(latIndex + 1) / float(kSubdivision)},
+				{vertD.position.x,vertD.position.y,vertD.position.z}
 			};
 			vertexData[start] = vertA;
 
@@ -1081,17 +1120,48 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	vertexDataSprite[0].position = { 0.0f,360.0f,0.0f,1.0f };
 	vertexDataSprite[0].texcoord = { 0.0f,1.0f };
+	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };
 	vertexDataSprite[1].position = { 0.0f,0.0f,0.0f,1.0f };
 	vertexDataSprite[1].texcoord = { 0.0f,0.0f };
+	vertexDataSprite[1].normal = { 0.0f,0.0f,-1.0f };
 	vertexDataSprite[2].position = { 640.0f,360.0f,0.0f,1.0f };
 	vertexDataSprite[2].texcoord = { 1.0f,1.0f };
+	vertexDataSprite[2].normal = { 0.0f,0.0f,-1.0f };
 
 	vertexDataSprite[3].position = { 0.0f,0.0f,0.0f,1.0f };
 	vertexDataSprite[3].texcoord = { 0.0f,0.0f };
+	vertexDataSprite[3].normal = { 0.0f,0.0f,-1.0f };
 	vertexDataSprite[4].position = { 640.0f,0.0f,0.0f,1.0f };
 	vertexDataSprite[4].texcoord = { 1.0f,0.0f };
+	vertexDataSprite[4].normal = { 0.0f,0.0f,-1.0f };
 	vertexDataSprite[5].position = { 640.0f,360.0f,0.0f,1.0f };
 	vertexDataSprite[5].texcoord = { 1.0f,1.0f };
+	vertexDataSprite[5].normal = { 0.0f,0.0f,-1.0f };
+#pragma endregion
+
+#pragma region 三角形の頂点データ
+	VertexData* vertexDataTriangle = nullptr;
+	vertexResourceTriangle->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataTriangle));
+
+	vertexDataTriangle[0].position = { -0.5f,-0.5f,0.0f,1.0f };
+	vertexDataTriangle[0].texcoord = { 0.0f,1.0f };
+	vertexDataTriangle[0].normal = { 0.0f,0.0f,-1.0f };
+	vertexDataTriangle[1].position = { 0.0f,0.5f,0.0f,1.0f };
+	vertexDataTriangle[1].texcoord = { 0.5f,0.0f };
+	vertexDataTriangle[1].normal = { 0.0f,0.0f,-1.0f };
+	vertexDataTriangle[2].position = { 0.5f,-0.5f,0.0f,1.0f };
+	vertexDataTriangle[2].texcoord = { 1.0f,1.0f };
+	vertexDataTriangle[2].normal = { 0.0f,0.0f,-1.0f };
+
+	vertexDataTriangle[3].position = { -0.5f,-0.5f,0.5f,1.0f };
+	vertexDataTriangle[3].texcoord = { 0.0f,1.0f };
+	vertexDataTriangle[3].normal = { 0.0f,0.0f,-1.0f };
+	vertexDataTriangle[4].position = { 0.0f,0.0f,0.0f,1.0f };
+	vertexDataTriangle[4].texcoord = { 0.5f,0.0f };
+	vertexDataTriangle[4].normal = { 0.0f,0.0f,-1.0f };
+	vertexDataTriangle[5].position = { 0.5f,-0.5f,-0.5f,1.0f };
+	vertexDataTriangle[5].texcoord = { 1.0f,1.0f };
+	vertexDataTriangle[5].normal = { 0.0f,0.0f,-1.0f };
 #pragma endregion
 
 #pragma region CreateDepthStencilextureResourceを作る
@@ -1220,6 +1290,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			*transformationMatrixDataSprite = worldViewProjectionMatrixSprite;
 #pragma endregion
 
+#pragma region WVPMatrixを作って書き込む//三角形二枚
+			transformTriangle.rotate.y += 0.03f;
+			Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
+			Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrixTriangle = Inverse(cameraMatrixTriangle);
+			Matrix4x4 projectionMatrixTriangle = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
+			Matrix4x4 worldProjectionMatrixTriangle = Multiply(worldMatrixTriangle, Multiply(viewMatrixTriangle, projectionMatrixTriangle));
+			*transformationMatrixDataTriangle = worldProjectionMatrixTriangle;
+#pragma endregion
+
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -1229,6 +1309,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			ImGui::Begin("texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
+			ImGui::End();
+
+			ImGui::Begin("tiangle");
+			ImGui::DragFloat3("position", &transformTriangle.translate.x,0.01f);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
@@ -1286,6 +1370,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			commandList->DrawInstanced(startIndex, 1, 0, 0);
+
+#pragma region 三角形二枚描画
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
+			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceTriangle->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+			commandList->DrawInstanced(6, 1, 0, 0);
+#pragma endregion
 
 #pragma region Sprite描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
