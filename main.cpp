@@ -576,6 +576,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descrip
 bool useMonsterBall = true;
 #pragma endregion
 
+struct Material {
+	Vector4 color;
+	int32_t enableLighting;
+};
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region COMの初期化
 	CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -974,13 +979,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Material用のResourceを作る
-	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Vector4));
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Material));
 
-	Vector4* materialData = nullptr;
+	Material* materialData = nullptr;
 
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 
-	*materialData = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	*materialData = { {1.0f, 1.0f, 1.0f, 1.0f },false };
+#pragma endregion
+
+#pragma region Material用のResourceを作る(sprite)
+	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
+
+	Material* materialDataSprite = nullptr;
+
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+
+	*materialDataSprite = { {1.0f, 1.0f, 1.0f, 1.0f },false };
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る
@@ -1290,7 +1305,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			*transformationMatrixDataSprite = worldViewProjectionMatrixSprite;
 #pragma endregion
 
-#pragma region WVPMatrixを作って書き込む//三角形二枚
+#pragma region Transformを使って書き込む//三角形二枚
 			transformTriangle.rotate.y += 0.03f;
 			Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
 			Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
@@ -1307,12 +1322,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::ShowDemoWindow();
 #pragma endregion
 
-			ImGui::Begin("texture");
+			ImGui::Begin("Window");
+			ImGui::Text("texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			ImGui::End();
-
-			ImGui::Begin("tiangle");
-			ImGui::DragFloat3("position", &transformTriangle.translate.x,0.01f);
+			ImGui::Text("Sprite");
+			ImGui::DragFloat3("position", &transformSprite.translate.x, 0.25f);
+			ImGui::Text("triangle");
+			ImGui::DragFloat3("position", &transformTriangle.translate.x, 0.01f);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
@@ -1380,6 +1396,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region Sprite描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			commandList->DrawInstanced(6, 1, 0, 0);
@@ -1450,6 +1467,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region 解放処理
 	depthStencilResource->Release();
+	vertexResourceTriangle->Release();
+	materialResourceSprite->Release();
+	vertexResourceSprite->Release();
 	materialResource->Release();
 	vertexResource->Release();
 	graphicsPipelineState->Release();
