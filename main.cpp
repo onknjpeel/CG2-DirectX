@@ -248,6 +248,24 @@ Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float botto
 }
 #pragma endregion
 
+#pragma region 長さ
+float Length(const Vector3& v) {
+	float result;
+	result = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+	return result;
+}
+#pragma endregion
+
+#pragma region 正規化
+Vector3 Normalize(const Vector3& v) {
+	Vector3 result;
+	result.x = v.x / Length(v);
+	result.y = v.y / Length(v);
+	result.z = v.z / Length(v);
+	return result;
+}
+#pragma endregion
+
 #pragma endregion
 
 #pragma region Resource作成の関数化(CreateBufferResource)
@@ -1390,6 +1408,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("position", &transformTriangle.translate.x, 0.01f);
 			ImGui::Text("DirectionalLight");
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
+			Normalize(directionalLightData->direction);
 			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
 			ImGui::End();
 
