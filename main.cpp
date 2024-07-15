@@ -1408,7 +1408,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("position", &transformTriangle.translate.x, 0.01f);
 			ImGui::Text("DirectionalLight");
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
-			Normalize(directionalLightData->direction);
+			directionalLightData->direction = Normalize(directionalLightData->direction);
 			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
 			ImGui::End();
 
