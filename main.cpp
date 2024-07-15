@@ -576,10 +576,45 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descrip
 bool useMonsterBall = true;
 #pragma endregion
 
+#pragma region Material
 struct Material {
 	Vector4 color;
 	int32_t enableLighting;
 };
+#pragma endregion
+
+#pragma region TransformMatrix:拡張
+struct TransformationMatrix {
+	Matrix4x4 WVP;
+	Matrix4x4 World;
+};
+#pragma endregion
+
+#pragma region 平行光源
+struct DirectionalLight {
+	Vector4 color;
+	Vector3 direction;
+	float intensity;
+};
+#pragma endregion
+
+/* 06_00
+ID3D12Resource* indexResourceSprite ~ CreateBufferResource(device, sizeof(uint32_t) * 6;
+
+D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
+indexBufferViewSprite.BufferLocation = indexBufferViewSprite->GetGPUVirtualAddress();
+indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6;
+indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT;
+
+uint32_t* indexDataSprite = nullptr;
+indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
+indexDataSprite[0] = 0; indexDataSprite[1] = 1; indexDataSprite[2] = 2;
+indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
+
+commandList->IASetIndexBuffer(&indexBufferViewSprite);
+
+commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+*/
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region COMの初期化
@@ -871,18 +906,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 #pragma endregion
+
 	rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameter[0].Descriptor.ShaderRegister = 0;
+
 	rootParameter[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameter[1].Descriptor.ShaderRegister = 0;
+
 #pragma region DescriptorTable
 	rootParameter[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameter[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameter[2].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameter[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
 #pragma endregion
+
+	rootParameter[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameter[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameter[3].Descriptor.ShaderRegister = 1;
+
 	descriptionRootSignature.pParameters = rootParameter;
 	descriptionRootSignature.NumParameters = _countof(rootParameter);
 #pragma endregion
