@@ -17,6 +17,8 @@
 #include "externals/imgui/imgui_impl_win32.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/DirectXTex/d3dx12.h"
+#include <fstream>
+#include <sstream>
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma comment(lib,"d3d12.lib")
@@ -671,6 +673,85 @@ Transform uvTransformSprite{
 };
 #pragma endregion
 
+#pragma region モデルデータ
+struct ModelData {
+	std::vector<VertexData> vertices;
+};
+#pragma endregion
+
+#pragma region モデルデータを読む関数
+ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename) {
+#pragma region 中で必要となる変数の宣言
+	ModelData modelData;
+	std::vector<Vector4> positions;
+	std::vector<Vector3> normals;
+	std::vector<Vector2> texcoords;
+	std::string line;
+#pragma endregion
+
+#pragma region ファイルを開く
+	std::ifstream file(directoryPath + "/" + filename);
+	assert(file.is_open());
+#pragma endregion
+
+#pragma region 実際にファイルを読みモデルデータを構築
+	while (std::getline(file, line)) {
+		std::string identifer;
+		std::istringstream s(line);
+		s >> identifer;
+#pragma region 頂点情報を読む
+		if (identifer == "v") {
+			Vector4 position;
+			s >> position.x >> position.y >> position.z;
+			position.x *= -1.0f;
+			position.w = 1.0f;
+			positions.push_back(position);
+		}
+		else if (identifer == "vt") {
+			Vector2 texcoord;
+			s >> texcoord.x >> texcoord.y;
+			texcoords.push_back(texcoord);
+		}
+		else if (identifer == "vn") {
+			Vector3 normal;
+			s >> normal.x >> normal.y >> normal.z;
+			normal.x *= -1.0f;
+			normals.push_back(normal);
+		}
+#pragma region 三角形を作る
+		else if (identifer == "f") {
+			VertexData triangle[3];
+			for (int32_t faceVertex = 0; faceVertex < 3; ++faceVertex) {
+				std::string vertexDefinition;
+				s >> vertexDefinition;
+
+				std::istringstream v(vertexDefinition);
+				uint32_t elementIndices[3];
+				for (int32_t element = 0; element < 3; ++element) {
+					std::string index;
+					std::getline(v, index, '/');
+					elementIndices[element] = std::stoi(index);
+				}
+				Vector4 position = positions[elementIndices[0] - 1];
+				Vector2 texcoord = texcoords[elementIndices[1] - 1];
+				Vector3 normal = normals[elementIndices[2] - 1];
+				//VertexData vertex = { position,texcoord,normal };
+				//modelData.vertices.push_back(vertex);
+				triangle[faceVertex] = { position,texcoord,normal };
+			}
+			modelData.vertices.push_back(triangle[2]);
+			modelData.vertices.push_back(triangle[1]);
+			modelData.vertices.push_back(triangle[0]);
+		}
+#pragma endregion
+
+#pragma endregion
+	}
+#pragma endregion
+	return modelData;
+}
+#pragma endregion
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region COMの初期化
 	CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -1079,8 +1160,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	uint32_t startIndex = kSubdivision * kSubdivision * 6;
 #pragma endregion
 
+#pragma region モデル読み込み
+	ModelData modelData = LoadObjFile("resources", "plane.obj");
+#pragma endregion
+
 #pragma region VertexResourceを生成
-	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * (kSubdivision + 1) * (kSubdivision + 1));
+	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * modelData.vertices.size());
 #pragma endregion
 
 #pragma region Material用のResourceを作る
@@ -1111,7 +1196,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
 
-	vertexBufferView.SizeInBytes = sizeof(VertexData) * (kSubdivision + 1) * (kSubdivision + 1);
+	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
 
 	vertexBufferView.StrideInBytes = sizeof(VertexData);
 #pragma endregion
@@ -1121,36 +1206,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
-	float pi = float(M_PI);
-
-	const float kLonEvery = pi * 2.0f / float(kSubdivision);
-
-	const float kLatEvery = pi / float(kSubdivision);
-
-	for (uint32_t i = 0; i < kSubdivision + 1; ++i) {
-		float lat = -pi / 2.0f + kLatEvery * i;
-		for (uint32_t j = 0; j < kSubdivision + 1; ++j) {
-			float lon = j * kLonEvery;
-			Vector4 a = {
-				std::cos(lat) * std::cos(lon),
-				std::sin(lat),
-				std::cos(lat) * std::sin(lon),
-				1.0f
-			};
-
-			uint32_t start = i * (kSubdivision + 1) + j;
-
-			float u = float(j) / float(kSubdivision);
-			float v = 1.0f - float(i) / float(kSubdivision);
-
-			vertexData[start].position = a;
-			vertexData[start].texcoord = { u,v };
-			vertexData[start].normal.x = a.x;
-			vertexData[start].normal.y = a.y;
-			vertexData[start].normal.z = a.z;
-		}
-
-	}
+	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
 
 #pragma endregion
 
@@ -1550,14 +1606,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 #pragma endregion
 
-			commandList->DrawIndexedInstanced(startIndex, 1, 0, 0, 0);
+			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
 #pragma region 三角形二枚描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
 			commandList->IASetIndexBuffer(&indexBufferViewTriangle);
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceTriangle->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 #pragma endregion
 
 #pragma region Sprite描画
@@ -1566,7 +1622,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 #pragma endregion
 
