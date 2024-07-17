@@ -42,6 +42,10 @@ struct Vector4 {
 	float w;
 };
 
+struct Matrix3x3 {
+	float m[3][3];
+};
+
 struct Matrix4x4 {
 	float m[4][4];
 };
@@ -79,29 +83,70 @@ Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
 }
 #pragma endregion
 
+#pragma region 拡縮行列の作成
+Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
+	Matrix4x4 result;
+	result = {
+		scale.x,0.0f,0.0f,0.0f,
+		0.0f,scale.y,0.0f,0.0f,
+		0.0f,0.0f,scale.z,0.0f,
+		0.0f,0.0f,0.0f,1.0f
+	};
+	return result;
+}
+#pragma endregion
+
+#pragma region 平行移動行列の作成
+Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
+	Matrix4x4 result;
+	result = {
+		1.0f,0.0f,0.0f,0.0f,
+		0.0f,1.0f,0.0f,0.0f,
+		0.0f,0.0f,1.0f,0.0f,
+		translate.x,translate.y,translate.z,1.0f
+	};
+	return result;
+}
+#pragma endregion
+
 #pragma region 回転行列の作成
-Matrix4x4 MakeRotateMatrix(const Vector3& rotate) {
+Matrix4x4 MakeRotateXMatrix(const float& rotate) {
 	Matrix4x4 rotateX;
 	rotateX = {
 	1,0,0,0,
-		0,std::cos(rotate.x),std::sin(rotate.x),0,
-		0,-std::sin(rotate.x),std::cos(rotate.x),0,
+		0,std::cos(rotate),std::sin(rotate),0,
+		0,-std::sin(rotate),std::cos(rotate),0,
 		0,0,0,1
 	};
+	return rotateX;
+}
+Matrix4x4 MakeRotateYMatrix(const float& rotate) {
 	Matrix4x4 rotateY;
 	rotateY = {
-	std::cos(rotate.y),0,-std::sin(rotate.y),0,
+	std::cos(rotate),0,-std::sin(rotate),0,
 		0,1,0,0,
-		std::sin(rotate.y),0,std::cos(rotate.y),
+		std::sin(rotate),0,std::cos(rotate),
 		0,0,0,0,1
 	};
+	return rotateY;
+}
+Matrix4x4 MakeRotateZMatrix(const float& rotate) {
 	Matrix4x4 rotateZ;
 	rotateZ = {
-	std::cos(rotate.z),std::sin(rotate.z),0,0,
-		-std::sin(rotate.z),std::cos(rotate.z),0,0,
+	std::cos(rotate),std::sin(rotate),0,0,
+		-std::sin(rotate),std::cos(rotate),0,0,
 		0,0,1,0,
 		0,0,0,1
 	};
+	return rotateZ;
+}
+Matrix4x4 MakeRotateMatrix(const Vector3& rotate) {
+	Matrix4x4 rotateX = MakeRotateXMatrix(rotate.x);
+
+	Matrix4x4 rotateY = MakeRotateYMatrix(rotate.y);
+
+	Matrix4x4 rotateZ = MakeRotateZMatrix(rotate.z);
+
 	Matrix4x4 result = Multiply(rotateX, Multiply(rotateY, rotateZ));
 	return result;
 }
@@ -594,10 +639,12 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descrip
 bool useMonsterBall = true;
 #pragma endregion
 
-#pragma region Material
+#pragma region Material ver.06_01
 struct Material {
 	Vector4 color;
 	int32_t enableLighting;
+	float padding[3];
+	Matrix4x4 uvTransform;
 };
 #pragma endregion
 
@@ -613,6 +660,14 @@ struct DirectionalLight {
 	Vector4 color;
 	Vector3 direction;
 	float intensity;
+};
+#pragma endregion
+
+#pragma region UVTransformの変数
+Transform uvTransformSprite{
+	{1.0f,1.0f,1.0f},
+	{0.0f,0.0f,0.0f},
+	{0.0f,0.0f,0.0f}
 };
 #pragma endregion
 
@@ -670,7 +725,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #endif
-
 
 #pragma region DXGIFactoryの生成
 	IDXGIFactory7* dxgiFactory = nullptr;
@@ -1036,7 +1090,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 
-	*materialData = { {1.0f, 1.0f, 1.0f, 1.0f },true };
+	materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	materialData->enableLighting = true;
+	materialData->uvTransform = MakeIdentity4x4();
+
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る
@@ -1118,7 +1175,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			uint32_t a = i * (kSubdivision + 1) + j;
 			indexData[start] = a; indexData[start + 1] = a + kSubdivision + 1; indexData[start + 2] = a + 1;
 			indexData[start + 3] = a + kSubdivision + 1; indexData[start + 4] = a + kSubdivision + 2; indexData[start + 5] = a + 1;
-
 		}
 	}
 
@@ -1204,7 +1260,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
 
-	*materialDataSprite = { {1.0f, 1.0f, 1.0f, 1.0f },false };
+	materialDataSprite->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	materialDataSprite->enableLighting = false;
+	materialDataSprite->uvTransform = MakeIdentity4x4();
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る(Sprite)
@@ -1405,6 +1463,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			*transformationMatrixDataTriangle = { worldProjectionMatrixTriangle ,worldMatrixTriangle };
 #pragma endregion
 
+#pragma region UVTransform行列
+			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
+			materialDataSprite->uvTransform = uvTransformMatrix;
+#pragma endregion
+
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -1423,6 +1488,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
 			directionalLightData->direction = Normalize(directionalLightData->direction);
 			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
+			ImGui::Text("UV");
+			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
