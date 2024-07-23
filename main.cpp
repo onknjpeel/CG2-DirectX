@@ -673,9 +673,46 @@ Transform uvTransformSprite{
 };
 #pragma endregion
 
+#pragma region マテリアルデータ
+struct MaterialData {
+	std::string textureFilePath;
+};
+#pragma endregion
+
+#pragma region マテリアルデータを読む関数
+MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
+#pragma region 必要な変数の宣言
+	MaterialData materialData;
+	std::string line;
+#pragma endregion
+
+#pragma region ファイルを開く
+	std::ifstream file(directoryPath + "/" + filename);
+	assert(file.is_open());
+#pragma endregion
+
+#pragma region マテリアルデータを構築
+	while (std::getline(file, line)) {
+		std::string identifer;
+		std::istringstream s(line);
+		s >> identifer;
+
+		if (identifer == "map_Kd") {
+			std::string textureFilename;
+			s >> textureFilename;
+
+			materialData.textureFilePath = directoryPath + "/" + textureFilename;
+		}
+	}
+#pragma endregion
+	return materialData;
+}
+#pragma endregion
+
 #pragma region モデルデータ
 struct ModelData {
 	std::vector<VertexData> vertices;
+	MaterialData material;
 };
 #pragma endregion
 
@@ -710,6 +747,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 		else if (identifer == "vt") {
 			Vector2 texcoord;
 			s >> texcoord.x >> texcoord.y;
+			texcoord.y = 1.0f - texcoord.y;
 			texcoords.push_back(texcoord);
 		}
 		else if (identifer == "vn") {
@@ -735,13 +773,19 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 				Vector4 position = positions[elementIndices[0] - 1];
 				Vector2 texcoord = texcoords[elementIndices[1] - 1];
 				Vector3 normal = normals[elementIndices[2] - 1];
-				//VertexData vertex = { position,texcoord,normal };
-				//modelData.vertices.push_back(vertex);
 				triangle[faceVertex] = { position,texcoord,normal };
 			}
 			modelData.vertices.push_back(triangle[2]);
 			modelData.vertices.push_back(triangle[1]);
 			modelData.vertices.push_back(triangle[0]);
+		}
+#pragma endregion
+#pragma region マテリアルを読み込み
+		else if (identifer == "mtllib") {
+			std::string materialFilename;
+			s >> materialFilename;
+
+			modelData.material = LoadMaterialTemplateFile(directoryPath, materialFilename);
 		}
 #pragma endregion
 
@@ -966,47 +1010,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
 #pragma endregion
 
-#pragma region 2枚目のtextureを読む
-	DirectX::ScratchImage mipImages2 = LoadTexture("resources/monsterBall.png");
-	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
-	ID3D12Resource* textureResource2 = CreateTextureResource(device, metadata2);
-	ID3D12Resource* intermediate2 = UploadTextureData(textureResource2, mipImages2, device, commandList);
-#pragma endregion
-
-#pragma region Textureを読んで転送する
-	DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
-	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-	ID3D12Resource* textureResource = CreateTextureResource(device, metadata);
-	ID3D12Resource* intermediate = UploadTextureData(textureResource, mipImages, device, commandList);
-#pragma endregion
-
-#pragma region SRVを作る
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = metadata.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
-
-	device->CreateShaderResourceView(textureResource, &srvDesc, textureSrvHandleCPU);
-
-#pragma endregion
-
-#pragma region SRV2つ目
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
-	srvDesc2.Format = metadata2.format;
-	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc2.Texture2D.MipLevels = UINT(metadata.mipLevels);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
-
-	device->CreateShaderResourceView(textureResource2, &srvDesc2, textureSrvHandleCPU2);
-#pragma endregion
-
 #pragma region FenceとEventを生成する
 	ID3D12Fence* fence = nullptr;
 	uint64_t fenceValue = 0;
@@ -1161,7 +1164,48 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region モデル読み込み
-	ModelData modelData = LoadObjFile("resources", "plane.obj");
+	ModelData modelData = LoadObjFile("resources", "axis.obj");
+#pragma endregion
+
+#pragma region 2枚目のtextureを読む
+	DirectX::ScratchImage mipImages2 = LoadTexture(modelData.material.textureFilePath);
+	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
+	ID3D12Resource* textureResource2 = CreateTextureResource(device, metadata2);
+	ID3D12Resource* intermediate2 = UploadTextureData(textureResource2, mipImages2, device, commandList);
+#pragma endregion
+
+#pragma region Textureを読んで転送する
+	DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
+	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
+	ID3D12Resource* textureResource = CreateTextureResource(device, metadata);
+	ID3D12Resource* intermediate = UploadTextureData(textureResource, mipImages, device, commandList);
+#pragma endregion
+
+#pragma region SRVを作る
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = metadata.format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
+
+	device->CreateShaderResourceView(textureResource, &srvDesc, textureSrvHandleCPU);
+
+#pragma endregion
+
+#pragma region SRV2つ目
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
+	srvDesc2.Format = metadata2.format;
+	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc2.Texture2D.MipLevels = UINT(metadata.mipLevels);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
+
+	device->CreateShaderResourceView(textureResource2, &srvDesc2, textureSrvHandleCPU2);
 #pragma endregion
 
 #pragma region VertexResourceを生成
@@ -1492,7 +1536,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Transformを使ってCBufferを更新する
-			transform.rotate.y += 0.03f;
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -1510,7 +1553,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Transformを使って書き込む//三角形二枚
-			transformTriangle.rotate.y += 0.03f;
 			Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
 			Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrixTriangle = Inverse(cameraMatrixTriangle);
@@ -1534,16 +1576,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			ImGui::Begin("Window");
+			ImGui::Text("Model");
+			ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
+			ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
+			ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
 			ImGui::Text("texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			ImGui::Text("Sprite");
-			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
-			ImGui::Text("triangle");
-			ImGui::DragFloat3("Triangle.position", &transformTriangle.translate.x, 0.01f);
 			ImGui::Text("DirectionalLight");
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
 			directionalLightData->direction = Normalize(directionalLightData->direction);
 			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
+			ImGui::Text("triangle");
+			ImGui::DragFloat3("Triangle.position", &transformTriangle.translate.x, 0.01f);
+			ImGui::DragFloat3("Triangle.rotate", &transformTriangle.rotate.x, 0.01f);
+			ImGui::DragFloat3("Triangle.scale", &transformTriangle.scale.x, 0.01f);
+			ImGui::Text("Sprite");
+			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
 			ImGui::Text("UV");
 			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
