@@ -809,7 +809,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 #pragma endregion
 
 struct D3DResourceLeakChecker {
-	~D3DResourceLeakChecker(){
+	~D3DResourceLeakChecker() {
 		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
 		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
 			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
@@ -1610,7 +1610,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::Text("texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 			ImGui::Text("Lighting");
-			ImGui::DragFloat4("lightingColor", &materialData->color.x, 0.01f);
+			ImGui::DragFloat4("lightingColor", &materialData->color.x, 0.01f, 0.0f, 1.0f);
 			ImGui::ColorPicker4("colorPicker", &materialData->color.x, 1);
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
 			directionalLightData->direction = Normalize(directionalLightData->direction);
@@ -1661,7 +1661,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 #pragma region 描画用のDescriptorHeapを設定(ImGui)
-			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get()};
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
 #pragma endregion
 
