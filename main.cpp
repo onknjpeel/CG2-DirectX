@@ -122,6 +122,8 @@ bool useMonsterBall = true;
 
 bool useHalflambert = true;
 
+bool enableLighting = true;
+
 #pragma region Transform変数
 Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 #pragma endregion
@@ -1607,6 +1609,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
 			ImGui::Checkbox("useHalfLambert", &useHalflambert);
 			materialData->useHalfLambert = useHalflambert;
+			ImGui::Checkbox("enableLighting", &enableLighting);
+			materialData->enableLighting = enableLighting;
 			ImGui::Text("texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 			ImGui::Text("DirectionalLight");
