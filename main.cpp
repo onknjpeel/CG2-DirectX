@@ -66,6 +66,7 @@ struct Material {
 	int32_t enableLighting;
 	float padding[3];
 	Matrix4x4 uvTransform;
+	int32_t useHalfLambert;
 };
 #pragma endregion
 
@@ -118,6 +119,9 @@ Transform uvTransformSprite{
 #pragma region 切り替え用変数
 bool useMonsterBall = true;
 #pragma endregion
+
+bool useHalflambert = true;
+
 #pragma region Transform変数
 Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 #pragma endregion
@@ -1241,6 +1245,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialData->enableLighting = true;
 	materialData->uvTransform = MakeIdentity4x4();
+	materialData->useHalfLambert = useHalflambert;
 
 #pragma endregion
 
@@ -1382,6 +1387,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialDataSprite->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialDataSprite->enableLighting = false;
 	materialDataSprite->uvTransform = MakeIdentity4x4();
+	materialDataSprite->useHalfLambert = false;
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る(Sprite)
@@ -1599,6 +1605,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 			ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
 			ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
+			ImGui::Checkbox("useHalfLambert", &useHalflambert);
+			materialData->useHalfLambert = useHalflambert;
 			ImGui::Text("texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 			ImGui::Text("DirectionalLight");
@@ -1689,7 +1697,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 #pragma endregion
 
