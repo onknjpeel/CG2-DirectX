@@ -1614,28 +1614,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region ImGuiのウィンドウ
 			ImGui::Begin("Window");
-			ImGui::Text("Model");
-			ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
-			ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
-			ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f, 0.0f, 10.0f);
-			ImGui::Text("texture");
-			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			ImGui::Text("Lighting");
-			ImGui::DragFloat4("lightingColor", &materialData->color.x, 0.01f, 0.0f, 1.0f);
-			ImGui::ColorPicker4("colorPicker", &materialData->color.x, 1);
-			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
-			directionalLightData->direction = Normalize(directionalLightData->direction);
-			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f, 0.0f, 5.0f);
-			ImGui::Checkbox("useHalfLambert", &useHalflambert);
-			materialData->useHalfLambert = useHalflambert;
-			ImGui::Checkbox("enableLighting", &enableLighting);
-			materialData->enableLighting = enableLighting;
+			if (ImGui::TreeNode("model")) {
+				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
+				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
+				ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f, 0.0f, 10.0f);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("lighting")) {
+				ImGui::DragFloat4("lightingColor", &materialData->color.x, 0.01f, 0.0f, 1.0f);
+				if (ImGui::TreeNode("colorPicker")) {
+					ImGui::ColorPicker4("", &materialData->color.x, 1);
+					ImGui::TreePop();
+				}
+				ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
+				directionalLightData->direction = Normalize(directionalLightData->direction);
+				ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f, 0.0f, 5.0f);
+				ImGui::Checkbox("useHalfLambert", &useHalflambert);
+				materialData->useHalfLambert = useHalflambert;
+				ImGui::Checkbox("enableLighting", &enableLighting);
+				materialData->enableLighting = enableLighting;
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("UV")) {
+				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+				ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+				ImGui::TreePop();
+			}
 			ImGui::Text("Sprite");
 			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
-			ImGui::Text("UV");
-			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 			ImGui::End();
 #pragma endregion
 
