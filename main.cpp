@@ -1613,7 +1613,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region ImGuiのウィンドウ
-			ImGui::Begin("Window");
+			ImGui::Begin("Window",nullptr,ImGuiWindowFlags_MenuBar);
+			if (ImGui::BeginMenuBar()) {
+				if (ImGui::BeginMenu("reset")) {
+					if (ImGui::MenuItem("AllReset")) {
+						transform.scale = { 1.0f,1.0f,1.0f };
+						transform.rotate = { 0.0f,0.0f,0.0f };
+						transform.translate = { 0.0f,0.0f,0.0f };
+
+						materialData->color = { 1.0f,1.0f,1.0f,1.0f };
+						directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
+						directionalLightData->intensity = 1.0f;
+						useHalflambert = true;
+						enableLighting = true;
+						
+						uvTransformSprite.scale = { 1.0f, 1.0f, 1.0f };
+						uvTransformSprite.rotate = { 0.0f,0.0f,0.0f };
+						uvTransformSprite.translate = { 0.0f,0.0f,0.0f };
+
+						transformSprite.translate = { 0.0f,0.0f,0.0f };
+					}
+					ImGui::EndMenu();
+				}
+				ImGui::EndMenuBar();
+			}
 			if (ImGui::TreeNode("model")) {
 				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
@@ -1663,6 +1686,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			if (ImGui::Button("reset", { 60,20 })) {
 				transformSprite.translate = { 0.0f,0.0f,0.0f };
 			}
+			
 			ImGui::End();
 #pragma endregion
 
