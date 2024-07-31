@@ -561,9 +561,6 @@ Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
 
 	Log(ConvertString(std::format(L"Compile Succeeded, path:{}, profile:{}\n", filePath, profile)));
 
-	shaderSource->Release();
-	shaderResult->Release();
-
 	return shaderBlob;
 #pragma endregion
 }
@@ -956,7 +953,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		infoQueue->PushStorageFilter(&filter);
 #pragma endregion
 
-		infoQueue->Release();
 	}
 #pragma endregion
 
