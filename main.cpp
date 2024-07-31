@@ -501,7 +501,7 @@ void Log(const std::string& message) {
 #pragma endregion
 
 #pragma region CompilerShader関数
-IDxcBlob* CompileShader(
+Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
 	const std::wstring& filePath,
 	const wchar_t* profile,
 	IDxcUtils* dxcUtils,
@@ -555,7 +555,7 @@ IDxcBlob* CompileShader(
 #pragma endregion
 
 #pragma region Compile結果を受け取って返す
-	IDxcBlob* shaderBlob = nullptr;
+	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob = nullptr;
 	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 	assert(SUCCEEDED(hr));
 
@@ -1173,11 +1173,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region ShaderをCompileする
-	IDxcBlob* vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl",
+	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl",
 		L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
 	assert(vertexShaderBlob != nullptr);
 
-	IDxcBlob* pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl",
+	Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl",
 		L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
 	assert(pixelShaderBlob != nullptr);
 #pragma endregion
@@ -1777,12 +1777,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::string str1{ std::to_string(10) };
 
 #pragma region 解放処理
-	signatureBlob->Release();
-	if (errorBlob) {
-		errorBlob->Release();
-	}
-	pixelShaderBlob->Release();
-	vertexShaderBlob->Release();
 	CloseHandle(fenceEvent);
 	CloseWindow(hwnd);
 #pragma endregion
