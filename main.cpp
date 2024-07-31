@@ -1639,11 +1639,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::Checkbox("enableLighting", &enableLighting);
 				materialData->enableLighting = enableLighting;
 				if (ImGui::Button("reset", { 60,20 })) {
-					directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+					materialData->color = { 1.0f,1.0f,1.0f,1.0f };
 					directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
 					directionalLightData->intensity = 1.0f;
-					materialData->useHalfLambert = true;
-					materialData->enableLighting = true;
+					useHalflambert = true;
+					enableLighting = true;
 				}
 				ImGui::TreePop();
 			}
