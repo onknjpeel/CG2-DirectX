@@ -1618,6 +1618,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
 				ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f, 0.0f, 10.0f);
+				if (ImGui::Button("reset", { 60,20 })) {
+					transform.scale = { 1.0f,1.0f,1.0f };
+					transform.rotate = { 0.0f,0.0f,0.0f };
+					transform.translate = { 0.0f,0.0f,0.0f };
+				}
 				ImGui::TreePop();
 			}
 			if (ImGui::TreeNode("lighting")) {
@@ -1633,16 +1638,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				materialData->useHalfLambert = useHalflambert;
 				ImGui::Checkbox("enableLighting", &enableLighting);
 				materialData->enableLighting = enableLighting;
+				if (ImGui::Button("reset", { 60,20 })) {
+					directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+					directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
+					directionalLightData->intensity = 1.0f;
+					materialData->useHalfLambert = true;
+					materialData->enableLighting = true;
+				}
 				ImGui::TreePop();
 			}
 			if (ImGui::TreeNode("UV")) {
 				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 				ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+				if (ImGui::Button("reset", { 60,20 })) {
+					uvTransformSprite.scale = { 1.0f, 1.0f, 1.0f };
+					uvTransformSprite.rotate = { 0.0f,0.0f,0.0f };
+					uvTransformSprite.translate = { 0.0f,0.0f,0.0f };
+				}
 				ImGui::TreePop();
 			}
 			ImGui::Text("Sprite");
 			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
+			if (ImGui::Button("reset", { 60,20 })) {
+				transformSprite.translate = { 0.0f,0.0f,0.0f };
+			}
 			ImGui::End();
 #pragma endregion
 
