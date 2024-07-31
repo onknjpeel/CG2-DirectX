@@ -1,5 +1,6 @@
 #define _USE_MATH_DEFINES
 
+#pragma region インクルードゾーン
 #include <Windows.h>
 #include <cstdint>
 #include <string>
@@ -20,12 +21,15 @@
 #include <fstream>
 #include <sstream>
 #include <wrl.h>
+#pragma endregion
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+#pragma region プラグマコメントゾーン
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib,"dxcompiler.lib")
+#pragma endregion
 
 #pragma region 構造体群
 struct Vector2 {
@@ -66,6 +70,7 @@ struct Material {
 	int32_t enableLighting;
 	float padding[3];
 	Matrix4x4 uvTransform;
+	int32_t useHalfLambert;
 };
 #pragma endregion
 
@@ -118,6 +123,13 @@ Transform uvTransformSprite{
 #pragma region 切り替え用変数
 bool useMonsterBall = true;
 #pragma endregion
+
+#pragma region ライティング切り替えに関する変数
+bool useHalflambert = true;
+
+bool enableLighting = true;
+#pragma endregion
+
 #pragma region Transform変数
 Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 #pragma endregion
@@ -800,10 +812,10 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 	return modelData;
 }
 #pragma endregion
-#pragma endregion
 
+#pragma region リークチェッカー
 struct D3DResourceLeakChecker {
-	~D3DResourceLeakChecker(){
+	~D3DResourceLeakChecker() {
 		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
 		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
 			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
@@ -812,6 +824,8 @@ struct D3DResourceLeakChecker {
 		}
 	}
 };
+#pragma endregion
+#pragma endregion
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3DResourceLeakChecker leakChecker;
@@ -1168,6 +1182,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(pixelShaderBlob != nullptr);
 #pragma endregion
 
+#pragma region 光源用のリソースを作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
 
 	DirectionalLight* directionalLightData = nullptr;
@@ -1175,6 +1190,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
 
 	*directionalLightData = DirectionalLight({ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f,-1.0f,0.0f }, 1.0f);
+#pragma endregion
 
 #pragma region 球作成用変数宣言
 	uint32_t kSubdivision = 30;
@@ -1241,6 +1257,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialData->enableLighting = true;
 	materialData->uvTransform = MakeIdentity4x4();
+	materialData->useHalfLambert = useHalflambert;
 
 #pragma endregion
 
@@ -1382,6 +1399,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialDataSprite->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialDataSprite->enableLighting = false;
 	materialDataSprite->uvTransform = MakeIdentity4x4();
+	materialDataSprite->useHalfLambert = false;
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る(Sprite)
@@ -1541,6 +1559,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 #pragma endregion
 
+#pragma region メインループ
 	while (msg.message != WM_QUIT) {
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
@@ -1587,28 +1606,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			materialDataSprite->uvTransform = uvTransformMatrix;
 #pragma endregion
 
-#pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
 #pragma region ImGuiの処理
 			ImGui::ShowDemoWindow();
 #pragma endregion
 
+#pragma region ImGuiのウィンドウ
 			ImGui::Begin("Window");
 			ImGui::Text("Model");
 			ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 			ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
-			ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
+			ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f, 0.0f, 10.0f);
 			ImGui::Text("texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			ImGui::Text("DirectionalLight");
+			ImGui::Text("Lighting");
+			ImGui::DragFloat4("lightingColor", &materialData->color.x, 0.01f, 0.0f, 1.0f);
+			ImGui::ColorPicker4("colorPicker", &materialData->color.x, 1);
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
 			directionalLightData->direction = Normalize(directionalLightData->direction);
-			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
-			ImGui::Text("triangle");
-			ImGui::DragFloat3("Triangle.position", &transformTriangle.translate.x, 0.01f);
-			ImGui::DragFloat3("Triangle.rotate", &transformTriangle.rotate.x, 0.01f);
-			ImGui::DragFloat3("Triangle.scale", &transformTriangle.scale.x, 0.01f);
+			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f, 0.0f, 5.0f);
+			ImGui::Checkbox("useHalfLambert", &useHalflambert);
+			materialData->useHalfLambert = useHalflambert;
+			ImGui::Checkbox("enableLighting", &enableLighting);
+			materialData->enableLighting = enableLighting;
 			ImGui::Text("Sprite");
 			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
 			ImGui::Text("UV");
@@ -1616,6 +1637,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 			ImGui::End();
+#pragma endregion
 
 #pragma region ImGuiの内部コマンドを生成
 			ImGui::Render();
@@ -1647,7 +1669,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 #pragma region 描画用のDescriptorHeapを設定(ImGui)
-			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get()};
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
 #pragma endregion
 
@@ -1689,7 +1711,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 #pragma endregion
 
@@ -1736,9 +1758,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			hr = commandList->Reset(commandAllocator.Get(), nullptr);
 			assert(SUCCEEDED(hr));
 #pragma endregion
-
 		}
 	}
+#pragma endregion
 
 #pragma region ImGuiの終了処理
 	ImGui_ImplDX12_Shutdown();
