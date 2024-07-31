@@ -1659,7 +1659,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::TreePop();
 			}
 			ImGui::Text("Sprite");
-			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
+			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.5f);
 			if (ImGui::Button("reset", { 60,20 })) {
 				transformSprite.translate = { 0.0f,0.0f,0.0f };
 			}
