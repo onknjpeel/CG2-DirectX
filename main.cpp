@@ -1591,26 +1591,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			ImGui::Begin("Window");
-			ImGui::Text("Model");
-			ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
-			ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
-			ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
-			ImGui::Text("texture");
-			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			ImGui::Text("DirectionalLight");
-			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
-			directionalLightData->direction = Normalize(directionalLightData->direction);
-			ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
-			ImGui::Text("triangle");
-			ImGui::DragFloat3("Triangle.position", &transformTriangle.translate.x, 0.01f);
-			ImGui::DragFloat3("Triangle.rotate", &transformTriangle.rotate.x, 0.01f);
-			ImGui::DragFloat3("Triangle.scale", &transformTriangle.scale.x, 0.01f);
+			if (ImGui::TreeNode("model")) {
+				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
+				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
+				ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
+				ImGui::Checkbox("useMonsterBall", &useMonsterBall);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("DirectionalLight")) {
+				ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
+				directionalLightData->direction = Normalize(directionalLightData->direction);
+				ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("UV")) {
+				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+				ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+				ImGui::TreePop();
+			}
 			ImGui::Text("Sprite");
 			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
-			ImGui::Text("UV");
-			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
