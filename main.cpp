@@ -31,6 +31,13 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 #pragma comment(lib,"dxcompiler.lib")
 #pragma endregion
 
+enum {
+	useAxis,
+	useBunny
+};
+
+static int mode = 0;
+
 #pragma region 構造体群
 struct Vector2 {
 	float x;
@@ -1195,15 +1202,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region モデル読み込み
-	ModelData modelData = LoadObjFile("resources", "axis.obj");
+	ModelData axisModelData = LoadObjFile("resources", "axis.obj");
+
+	ModelData bunnyModelData = LoadObjFile("resources", "bunny.obj");
 #pragma endregion
 
 #pragma region 2枚目のtextureを読む
-	DirectX::ScratchImage mipImages2 = LoadTexture(modelData.material.textureFilePath);
-	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResource(device, metadata2);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediate2 = UploadTextureData(textureResource2, mipImages2, device, commandList);
+	DirectX::ScratchImage axisMipImages = LoadTexture(axisModelData.material.textureFilePath);
+	const DirectX::TexMetadata& axisMetadata = axisMipImages.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> axisTextureResource = CreateTextureResource(device, axisMetadata);
+	Microsoft::WRL::ComPtr<ID3D12Resource> axisIntermediate = UploadTextureData(axisTextureResource, axisMipImages, device, commandList);
 #pragma endregion
+
+	DirectX::ScratchImage bunnyMipImages = LoadTexture(bunnyModelData.material.textureFilePath);
+	const DirectX::TexMetadata& bunnyMetadata = bunnyMipImages.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> bunnyTextureResource = CreateTextureResource(device, bunnyMetadata);
+	Microsoft::WRL::ComPtr<ID3D12Resource> bunnyIntermediate = UploadTextureData(bunnyTextureResource, bunnyMipImages, device, commandList);
 
 #pragma region Textureを読んで転送する
 	DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
@@ -1228,19 +1242,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region SRV2つ目
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
-	srvDesc2.Format = metadata2.format;
+	srvDesc2.Format = axisMetadata.format;
 	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc2.Texture2D.MipLevels = UINT(metadata.mipLevels);
+	srvDesc2.Texture2D.MipLevels = UINT(axisMetadata.mipLevels);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
+	D3D12_CPU_DESCRIPTOR_HANDLE axisTextureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
+	D3D12_GPU_DESCRIPTOR_HANDLE axisTextureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
 
-	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
+	device->CreateShaderResourceView(axisTextureResource.Get(), &srvDesc2, axisTextureSrvHandleCPU);
 #pragma endregion
 
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3{};
+	srvDesc3.Format = bunnyMetadata.format;
+	srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc3.Texture2D.MipLevels = UINT(bunnyMetadata.mipLevels);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE bunnyTextureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE bunnyTextureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+
+	device->CreateShaderResourceView(bunnyTextureResource.Get(), &srvDesc3, bunnyTextureSrvHandleCPU);
+
 #pragma region VertexResourceを生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device, sizeof(VertexData) * modelData.vertices.size());
+	Microsoft::WRL::ComPtr<ID3D12Resource> axisVertexResource = CreateBufferResource(device, sizeof(VertexData) * axisModelData.vertices.size());
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> bunnyVertexResource = CreateBufferResource(device, sizeof(VertexData) * bunnyModelData.vertices.size());
+
 #pragma endregion
 
 #pragma region Material用のResourceを作る
@@ -1268,23 +1296,37 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region VertexBufferViewを作成
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+	D3D12_VERTEX_BUFFER_VIEW axisVertexBufferView{};
 
-	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+	axisVertexBufferView.BufferLocation = axisVertexResource->GetGPUVirtualAddress();
 
-	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
+	axisVertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * axisModelData.vertices.size());
 
-	vertexBufferView.StrideInBytes = sizeof(VertexData);
+	axisVertexBufferView.StrideInBytes = sizeof(VertexData);
 #pragma endregion
+
+	D3D12_VERTEX_BUFFER_VIEW bunnyVertexBufferView{};
+
+	bunnyVertexBufferView.BufferLocation = bunnyVertexResource->GetGPUVirtualAddress();
+
+	bunnyVertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * bunnyModelData.vertices.size());
+
+	bunnyVertexBufferView.StrideInBytes = sizeof(VertexData);
 
 #pragma region Resourceにデータを書き込む(頂点データの更新)
-	VertexData* vertexData = nullptr;
+	VertexData* axisVertexData = nullptr;
 
-	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	axisVertexResource->Map(0, nullptr, reinterpret_cast<void**>(&axisVertexData));
 
-	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
+	std::memcpy(axisVertexData, axisModelData.vertices.data(), sizeof(VertexData) * axisModelData.vertices.size());
 
 #pragma endregion
+
+	VertexData* bunnyVertexData = nullptr;
+
+	bunnyVertexResource->Map(0, nullptr, reinterpret_cast<void**>(&bunnyVertexData));
+
+	std::memcpy(bunnyVertexData, bunnyModelData.vertices.data(), sizeof(VertexData)* bunnyModelData.vertices.size());
 
 #pragma region IndexResource
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = CreateBufferResource(device, sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
@@ -1633,6 +1675,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				}
 				ImGui::EndMenuBar();
 			}
+			ImGui::Text("usedModel");
+			ImGui::RadioButton("axis", &mode, useAxis); ImGui::SameLine(); ImGui::RadioButton("bunny", &mode, useBunny);
 			if (ImGui::TreeNode("model")) {
 				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
@@ -1664,7 +1708,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					useHalflambert = true;
 					enableLighting = true;
 				}
-				ImGui::TreePop();
+				ImGui::TreePop(); 
 			}
 			if (ImGui::TreeNode("UV")) {
 				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
@@ -1727,7 +1771,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
 			commandList->SetPipelineState(graphicsPipelineState.Get());
 
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->IASetIndexBuffer(&indexBufferView);
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1738,11 +1781,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 #pragma endregion
 
-#pragma region DescriptorTableを設定する
-			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
-#pragma endregion
-
-			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+			if (mode == useAxis) {
+				commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? axisTextureSrvHandleGPU : textureSrvHandleGPU);
+				commandList->IASetVertexBuffers(0, 1, &axisVertexBufferView);
+				commandList->DrawInstanced(UINT(axisModelData.vertices.size()), 1, 0, 0);
+			}
+			else if (mode == useBunny) {
+				commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? bunnyTextureSrvHandleGPU : textureSrvHandleGPU);
+				commandList->IASetVertexBuffers(0, 1, &bunnyVertexBufferView);
+				commandList->DrawInstanced(UINT(bunnyModelData.vertices.size()), 1, 0, 0);
+			}
 
 #pragma region 三角形二枚描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
