@@ -33,7 +33,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg
 
 enum {
 	useAxis,
-	useBunny
+	useBunny,
+	useTeapot,
 };
 
 static int mode = 0;
@@ -832,6 +833,8 @@ struct D3DResourceLeakChecker {
 #pragma endregion
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+#pragma region モデル読み込みまでスキップ用
+
 	D3DResourceLeakChecker leakChecker;
 
 #pragma region COMの初期化
@@ -1201,10 +1204,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	uint32_t startIndex = kSubdivision * kSubdivision * 6;
 #pragma endregion
 
+#pragma endregion
+
 #pragma region モデル読み込み
 	ModelData axisModelData = LoadObjFile("resources", "axis.obj");
 
 	ModelData bunnyModelData = LoadObjFile("resources", "bunny.obj");
+
+	ModelData teapotModelData = LoadObjFile("resources", "teapot.obj");
 #pragma endregion
 
 #pragma region 2枚目のtextureを読む
@@ -1218,6 +1225,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const DirectX::TexMetadata& bunnyMetadata = bunnyMipImages.GetMetadata();
 	Microsoft::WRL::ComPtr<ID3D12Resource> bunnyTextureResource = CreateTextureResource(device, bunnyMetadata);
 	Microsoft::WRL::ComPtr<ID3D12Resource> bunnyIntermediate = UploadTextureData(bunnyTextureResource, bunnyMipImages, device, commandList);
+
+	DirectX::ScratchImage teapotMipImages = LoadTexture(teapotModelData.material.textureFilePath);
+	const DirectX::TexMetadata& teapotMetadata = teapotMipImages.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> teapotTextureResource = CreateTextureResource(device, teapotMetadata);
+	Microsoft::WRL::ComPtr<ID3D12Resource> teapotIntermediate = UploadTextureData(teapotTextureResource, teapotMipImages, device, commandList);
 
 #pragma region Textureを読んで転送する
 	DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
@@ -1264,10 +1276,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	device->CreateShaderResourceView(bunnyTextureResource.Get(), &srvDesc3, bunnyTextureSrvHandleCPU);
 
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc4{};
+	srvDesc4.Format = teapotMetadata.format;
+	srvDesc4.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc4.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc4.Texture2D.MipLevels = UINT(teapotMetadata.mipLevels);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE teapotTextureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
+	D3D12_GPU_DESCRIPTOR_HANDLE teapotTextureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
+
+	device->CreateShaderResourceView(teapotTextureResource.Get(), &srvDesc4, teapotTextureSrvHandleCPU);
+
 #pragma region VertexResourceを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> axisVertexResource = CreateBufferResource(device, sizeof(VertexData) * axisModelData.vertices.size());
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> bunnyVertexResource = CreateBufferResource(device, sizeof(VertexData) * bunnyModelData.vertices.size());
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> teapotVertexResource = CreateBufferResource(device, sizeof(VertexData) * teapotModelData.vertices.size());
 
 #pragma endregion
 
@@ -1313,6 +1338,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bunnyVertexBufferView.StrideInBytes = sizeof(VertexData);
 
+	D3D12_VERTEX_BUFFER_VIEW teapotVertexBufferView{};
+
+	teapotVertexBufferView.BufferLocation = teapotVertexResource->GetGPUVirtualAddress();
+
+	teapotVertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * teapotModelData.vertices.size());
+
+	teapotVertexBufferView.StrideInBytes = sizeof(VertexData);
+
 #pragma region Resourceにデータを書き込む(頂点データの更新)
 	VertexData* axisVertexData = nullptr;
 
@@ -1326,7 +1359,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bunnyVertexResource->Map(0, nullptr, reinterpret_cast<void**>(&bunnyVertexData));
 
-	std::memcpy(bunnyVertexData, bunnyModelData.vertices.data(), sizeof(VertexData)* bunnyModelData.vertices.size());
+	std::memcpy(bunnyVertexData, bunnyModelData.vertices.data(), sizeof(VertexData) * bunnyModelData.vertices.size());
+
+	VertexData* teapotVertexData = nullptr;
+
+	teapotVertexResource->Map(0, nullptr, reinterpret_cast<void**>(&teapotVertexData));
+
+	std::memcpy(teapotVertexData, teapotModelData.vertices.data(), sizeof(VertexData) * teapotModelData.vertices.size());
+
+#pragma region メインループ手前までスキップ
 
 #pragma region IndexResource
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = CreateBufferResource(device, sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
@@ -1597,6 +1638,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 #pragma endregion
 
+#pragma endregion
+
 #pragma region メインループ
 	while (msg.message != WM_QUIT) {
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -1651,7 +1694,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region ImGuiのウィンドウ
-			ImGui::Begin("Window",nullptr,ImGuiWindowFlags_MenuBar);
+			ImGui::Begin("Window", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar()) {
 				if (ImGui::BeginMenu("reset")) {
 					if (ImGui::MenuItem("AllReset")) {
@@ -1664,7 +1707,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 						directionalLightData->intensity = 1.0f;
 						useHalflambert = true;
 						enableLighting = true;
-						
+
 						uvTransformSprite.scale = { 1.0f, 1.0f, 1.0f };
 						uvTransformSprite.rotate = { 0.0f,0.0f,0.0f };
 						uvTransformSprite.translate = { 0.0f,0.0f,0.0f };
@@ -1676,7 +1719,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::EndMenuBar();
 			}
 			ImGui::Text("usedModel");
-			ImGui::RadioButton("axis", &mode, useAxis); ImGui::SameLine(); ImGui::RadioButton("bunny", &mode, useBunny);
+			ImGui::RadioButton("axis", &mode, useAxis); ImGui::SameLine(); ImGui::RadioButton("bunny", &mode, useBunny); ImGui::SameLine(); ImGui::RadioButton("teapot", &mode, useTeapot);
 			if (ImGui::TreeNode("model")) {
 				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
@@ -1708,7 +1751,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					useHalflambert = true;
 					enableLighting = true;
 				}
-				ImGui::TreePop(); 
+				ImGui::TreePop();
 			}
 			if (ImGui::TreeNode("UV")) {
 				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
@@ -1726,7 +1769,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			if (ImGui::Button("reset", { 60,20 })) {
 				transformSprite.translate = { 0.0f,0.0f,0.0f };
 			}
-			
+
 			ImGui::End();
 #pragma endregion
 
@@ -1782,14 +1825,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			if (mode == useAxis) {
-				commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? axisTextureSrvHandleGPU : textureSrvHandleGPU);
+				commandList->SetGraphicsRootDescriptorTable(2, axisTextureSrvHandleGPU);
 				commandList->IASetVertexBuffers(0, 1, &axisVertexBufferView);
 				commandList->DrawInstanced(UINT(axisModelData.vertices.size()), 1, 0, 0);
 			}
 			else if (mode == useBunny) {
-				commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? bunnyTextureSrvHandleGPU : textureSrvHandleGPU);
+				commandList->SetGraphicsRootDescriptorTable(2, bunnyTextureSrvHandleGPU);
 				commandList->IASetVertexBuffers(0, 1, &bunnyVertexBufferView);
 				commandList->DrawInstanced(UINT(bunnyModelData.vertices.size()), 1, 0, 0);
+			}
+			else if (mode == useTeapot) {
+				commandList->SetGraphicsRootDescriptorTable(2, teapotTextureSrvHandleGPU);
+				commandList->IASetVertexBuffers(0, 1, &teapotVertexBufferView);
+				commandList->DrawInstanced(UINT(teapotModelData.vertices.size()), 1, 0, 0);
 			}
 
 #pragma region 三角形二枚描画
