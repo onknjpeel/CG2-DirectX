@@ -130,12 +130,6 @@ Transform uvTransformSprite{
 };
 #pragma endregion
 
-Transform saveUV{
-	{1.0f,1.0f,1.0f},
-	{0.0f,0.0f,0.0f},
-	{0.0f,0.0f,0.0f}
-};
-
 #pragma region 切り替え用変数
 bool useMonsterBall = true;
 #pragma endregion
@@ -154,13 +148,9 @@ bool saveEnableLighting = true;
 Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 #pragma endregion
 
-Transform saveTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
-
 #pragma region TransformSprite
 Transform transformSprite{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 #pragma endregion
-
-Vector3 saveTranslateSprite{ 0.0f,0.0f,0.0f };
 
 #pragma region TriangleのTlansform
 Transform transformTriangle{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
@@ -172,6 +162,17 @@ Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} 
 
 bool isSprite = true;
 
+#pragma region セーブ用変数
+Transform saveTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
+
+Transform saveUV{
+	{1.0f,1.0f,1.0f},
+	{0.0f,0.0f,0.0f},
+	{0.0f,0.0f,0.0f}
+};
+
+Vector3 saveTranslateSprite{ 0.0f,0.0f,0.0f };
+
 bool saveIsSprite = true;
 
 Vector4 saveColor = { 1.0f,1.0f,1.0f,1.0f };
@@ -179,7 +180,7 @@ Vector4 saveColor = { 1.0f,1.0f,1.0f,1.0f };
 Vector3 saveDirection{ 0.0f,-1.0f,0.0f };
 
 float saveIntensity = 1.0f;
-
+#pragma endregion
 #pragma endregion
 
 #pragma region 関数群
