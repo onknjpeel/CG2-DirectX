@@ -39,6 +39,8 @@ enum {
 
 static int mode = 0;
 
+static int saveMode = 0;
+
 #pragma region 構造体群
 struct Vector2 {
 	float x;
@@ -128,6 +130,12 @@ Transform uvTransformSprite{
 };
 #pragma endregion
 
+Transform saveUV{
+	{1.0f,1.0f,1.0f},
+	{0.0f,0.0f,0.0f},
+	{0.0f,0.0f,0.0f}
+};
+
 #pragma region 切り替え用変数
 bool useMonsterBall = true;
 #pragma endregion
@@ -138,13 +146,21 @@ bool useHalflambert = true;
 bool enableLighting = true;
 #pragma endregion
 
+bool saveUseHalflambert = true;
+
+bool saveEnableLighting = true;
+
 #pragma region Transform変数
 Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 #pragma endregion
 
+Transform saveTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
+
 #pragma region TransformSprite
 Transform transformSprite{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 #pragma endregion
+
+Vector3 saveTranslateSprite{ 0.0f,0.0f,0.0f };
 
 #pragma region TriangleのTlansform
 Transform transformTriangle{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
@@ -155,6 +171,15 @@ Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} 
 #pragma endregion
 
 bool isSprite = true;
+
+bool saveIsSprite = true;
+
+Vector4 saveColor = { 1.0f,1.0f,1.0f,1.0f };
+
+Vector3 saveDirection{ 0.0f,-1.0f,0.0f };
+
+float saveIntensity = 1.0f;
+
 #pragma endregion
 
 #pragma region 関数群
@@ -1699,8 +1724,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region ImGuiのウィンドウ
 			ImGui::Begin("Window", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar()) {
-				if (ImGui::BeginMenu("reset")) {
-					if (ImGui::MenuItem("AllReset")) {
+				if (ImGui::BeginMenu("file")) {
+					if (ImGui::MenuItem("save")) {
+						saveMode = mode;
+						saveTransform = transform;
+						saveColor = materialData->color;
+						saveDirection = directionalLightData->direction;
+						saveIntensity = directionalLightData->intensity;
+						saveUseHalflambert = useHalflambert;
+						saveEnableLighting = enableLighting;
+						saveUV = uvTransformSprite;
+						saveTranslateSprite = transformSprite.translate;
+						saveIsSprite = isSprite;
+					}
+					if (ImGui::MenuItem("load")) {
+						mode = saveMode;
+						transform = saveTransform;
+						materialData->color = saveColor;
+						directionalLightData->direction = saveDirection;
+						directionalLightData->intensity = saveIntensity;
+						useHalflambert = saveUseHalflambert;
+						enableLighting = saveEnableLighting;
+						uvTransformSprite = saveUV;
+						transformSprite.translate = saveTranslateSprite;
+						isSprite = saveIsSprite;
+					}
+					if (ImGui::MenuItem("reset")) {
+						mode = useAxis;
 						transform.scale = { 1.0f,1.0f,1.0f };
 						transform.rotate = { 0.0f,0.0f,0.0f };
 						transform.translate = { 0.0f,0.0f,0.0f };
@@ -1716,6 +1766,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 						uvTransformSprite.translate = { 0.0f,0.0f,0.0f };
 
 						transformSprite.translate = { 0.0f,0.0f,0.0f };
+
+						isSprite = true;
 					}
 					ImGui::EndMenu();
 				}
