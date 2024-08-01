@@ -153,6 +153,8 @@ Transform transformTriangle{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f }
 #pragma region cameraTransform変数
 Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} };
 #pragma endregion
+
+bool isSprite = true;
 #pragma endregion
 
 #pragma region 関数群
@@ -1254,6 +1256,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region SRV2つ目
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
+
 	srvDesc2.Format = axisMetadata.format;
 	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -1720,6 +1723,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 			ImGui::Text("usedModel");
 			ImGui::RadioButton("axis", &mode, useAxis); ImGui::SameLine(); ImGui::RadioButton("bunny", &mode, useBunny); ImGui::SameLine(); ImGui::RadioButton("teapot", &mode, useTeapot);
+			if (mode == useAxis) {
+				ImGui::Checkbox("monsterBall", &useMonsterBall);
+			}
 			if (ImGui::TreeNode("model")) {
 				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
@@ -1731,45 +1737,48 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				}
 				ImGui::TreePop();
 			}
-			if (ImGui::TreeNode("lighting")) {
-				ImGui::DragFloat4("lightingColor", &materialData->color.x, 0.01f, 0.0f, 1.0f);
-				if (ImGui::TreeNode("colorPicker")) {
-					ImGui::ColorPicker4("", &materialData->color.x, 1);
+			ImGui::Checkbox("enableLighting", &enableLighting);
+			materialData->enableLighting = enableLighting;
+			ImGui::DragFloat4("lightingColor", &materialData->color.x, 0.01f, 0.0f, 1.0f);
+			if (ImGui::TreeNode("colorPicker")) {
+				ImGui::ColorPicker4("", &materialData->color.x, 1);
+				ImGui::TreePop();
+			}
+			if (enableLighting) {
+				if (ImGui::TreeNode("lighting")) {
+					ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
+					directionalLightData->direction = Normalize(directionalLightData->direction);
+					ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f, 0.0f, 5.0f);
+					ImGui::Checkbox("useHalfLambert", &useHalflambert);
+					materialData->useHalfLambert = useHalflambert;
+					if (ImGui::Button("reset", { 60,20 })) {
+						materialData->color = { 1.0f,1.0f,1.0f,1.0f };
+						directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
+						directionalLightData->intensity = 1.0f;
+						useHalflambert = true;
+					}
 					ImGui::TreePop();
 				}
-				ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
-				directionalLightData->direction = Normalize(directionalLightData->direction);
-				ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f, 0.0f, 5.0f);
-				ImGui::Checkbox("useHalfLambert", &useHalflambert);
-				materialData->useHalfLambert = useHalflambert;
-				ImGui::Checkbox("enableLighting", &enableLighting);
-				materialData->enableLighting = enableLighting;
-				if (ImGui::Button("reset", { 60,20 })) {
-					materialData->color = { 1.0f,1.0f,1.0f,1.0f };
-					directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
-					directionalLightData->intensity = 1.0f;
-					useHalflambert = true;
-					enableLighting = true;
+			}
+			ImGui::Checkbox("sprite", &isSprite);
+			if (isSprite) {
+				if (ImGui::TreeNode("UV")) {
+					ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+					ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+					ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+					if (ImGui::Button("reset", { 60,20 })) {
+						uvTransformSprite.scale = { 1.0f, 1.0f, 1.0f };
+						uvTransformSprite.rotate = { 0.0f,0.0f,0.0f };
+						uvTransformSprite.translate = { 0.0f,0.0f,0.0f };
+					}
+					ImGui::TreePop();
 				}
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("UV")) {
-				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-				ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+				ImGui::Text("Sprite");
+				ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.5f);
 				if (ImGui::Button("reset", { 60,20 })) {
-					uvTransformSprite.scale = { 1.0f, 1.0f, 1.0f };
-					uvTransformSprite.rotate = { 0.0f,0.0f,0.0f };
-					uvTransformSprite.translate = { 0.0f,0.0f,0.0f };
+					transformSprite.translate = { 0.0f,0.0f,0.0f };
 				}
-				ImGui::TreePop();
 			}
-			ImGui::Text("Sprite");
-			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.5f);
-			if (ImGui::Button("reset", { 60,20 })) {
-				transformSprite.translate = { 0.0f,0.0f,0.0f };
-			}
-
 			ImGui::End();
 #pragma endregion
 
@@ -1825,7 +1834,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			if (mode == useAxis) {
-				commandList->SetGraphicsRootDescriptorTable(2, axisTextureSrvHandleGPU);
+				commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? axisTextureSrvHandleGPU : textureSrvHandleGPU);
 				commandList->IASetVertexBuffers(0, 1, &axisVertexBufferView);
 				commandList->DrawInstanced(UINT(axisModelData.vertices.size()), 1, 0, 0);
 			}
@@ -1854,7 +1863,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			if (isSprite) {
+				commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			}
 
 #pragma endregion
 
