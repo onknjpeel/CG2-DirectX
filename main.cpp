@@ -1144,6 +1144,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_BLEND_DESC blendDesc{};
 
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
 #pragma endregion
 
 #pragma region RasterizerStateの設定
@@ -1221,6 +1229,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
 
 	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
+#pragma endregion
+
+#pragma region fenceModel
+ModelData fenceModelData = LoadObjFile("resources", "fence.obj");
+
+	DirectX::ScratchImage fenceMipImages = LoadTexture("resources/uvChecker.png");
+	const DirectX::TexMetadata& fenceMetadata = fenceMipImages.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> fenceTextureResource = CreateTextureResource(device, fenceMetadata);
+	Microsoft::WRL::ComPtr<ID3D12Resource> fenceIntermediate = UploadTextureData(fenceTextureResource, fenceMipImages, device, commandList);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC fenseSrvDesc{};
+	fenseSrvDesc.Format = fenceMetadata.format;
+	fenseSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	fenseSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	fenseSrvDesc.Texture2D.MipLevels = UINT(fenceMetadata.mipLevels);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE fenceTextureSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE fenceTextureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+
+	device->CreateShaderResourceView(fenceTextureResource.Get(), &fenseSrvDesc, fenceTextureSrvHandleCPU);
 #pragma endregion
 
 #pragma region VertexResourceを生成
@@ -1442,6 +1470,68 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
 #pragma endregion
 
+#pragma region Material用のResourceを作る
+	Microsoft::WRL::ComPtr <ID3D12Resource> materialResource = CreateBufferResource(device, sizeof(Material));
+
+	Material* materialData = nullptr;
+
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+
+	materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	materialData->enableLighting = true;
+	materialData->uvTransform = MakeIdentity4x4();
+
+#pragma endregion
+
+#pragma region TransformationMatrix用のResourceを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource = CreateBufferResource(device, sizeof(TransformationMatrix));
+
+	TransformationMatrix* transformationMatrixData = nullptr;
+
+	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
+
+	transformationMatrixData->WVP = MakeIdentity4x4();
+#pragma endregion
+
+#pragma region VertexBufferViewを作成
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+
+	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+
+	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
+
+	vertexBufferView.StrideInBytes = sizeof(VertexData);
+#pragma endregion
+
+	VertexData* vertexData = nullptr;
+
+	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+
+	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData)* modelData.vertices.size());
+
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = CreateBufferResource(device, sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
+
+	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
+
+	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
+
+	indexBufferView.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6;
+
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+
+	uint32_t* indexData = nullptr;
+	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+	for (uint32_t i = 0; i < kSubdivision; ++i) {
+		for (uint32_t j = 0; j < kSubdivision; ++j) {
+			uint32_t start = (i * kSubdivision + j) * 6;
+			uint32_t a = i * (kSubdivision + 1) + j;
+			indexData[start] = a; indexData[start + 1] = a + kSubdivision + 1; indexData[start + 2] = a + 1;
+			indexData[start + 3] = a + kSubdivision + 1; indexData[start + 4] = a + kSubdivision + 2; indexData[start + 5] = a + 1;
+		}
+	}
+
+
 #pragma region CreateDepthStencilextureResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
 #pragma endregion
@@ -1598,6 +1688,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 				ImGui::TreePop();
 			}
+			if (ImGui::TreeNode("Color")) {
+				ImGui::DragFloat4("MaterialColor", &materialData->color.x, 0.01f);
+				ImGui::TreePop();
+			}
 			if (ImGui::TreeNode("DirectionalLight")) {
 				ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
 				directionalLightData->direction = Normalize(directionalLightData->direction);
@@ -1670,7 +1764,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 #pragma endregion
 
-			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+			//commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+
+			commandList->DrawInstanced(UINT(fenceModelData.vertices.size()), 3, 0, 0);
 
 #pragma region 三角形二枚描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
@@ -1768,5 +1864,3 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	return 0;
 }
-
-//GEブランチ
