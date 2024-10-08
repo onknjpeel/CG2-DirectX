@@ -1,4 +1,5 @@
 #define _USE_MATH_DEFINES
+#define DIRECTINPUT_VERSION	0x0800
 
 #include <Windows.h>
 #include <cstdint>
@@ -20,12 +21,15 @@
 #include <fstream>
 #include <sstream>
 #include <wrl.h>
+#include <dinput.h>
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib,"dxcompiler.lib")
+#pragma comment(lib,"dinput8.lib")
+#pragma comment(lib,"dxguid.lib")
 
 #pragma region 構造体群
 struct Vector2 {
@@ -800,7 +804,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 #pragma endregion
 
 struct D3DResourceLeakChecker {
-	~D3DResourceLeakChecker(){
+	~D3DResourceLeakChecker() {
 		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
 		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
 			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
@@ -913,6 +917,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n");
 #pragma endregion
+
+	HRESULT result;
+
+	IDirectInput8* directInput = nullptr;
+	result = DirectInput8Create(
+		wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
+		(void**)&directInput, nullptr
+	);
+	assert(SUCCEEDED(result));
+
+	IDirectInputDevice8* keyboard = nullptr;
+	result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
+	assert(SUCCEEDED(result));
+
+	result = keyboard->SetDataFormat(&c_dfDIKeyboard);
+	assert(SUCCEEDED(result));
+
+	result = keyboard->SetCooperativeLevel(
+		hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY
+	);
+	assert(SUCCEEDED(result));
 
 #ifdef _DEBUG
 
@@ -1544,6 +1569,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		else {
 			//ゲームの処理
+			keyboard->Acquire();
+
+			BYTE key[256] = {};
+			keyboard->GetDeviceState(sizeof(key), key);
+
+			if (key[DIK_0]) {
+				OutputDebugStringA("Hit 0\n");
+			}
+
 #pragma region フレームが始まる旨を告げる
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
@@ -1644,7 +1678,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 #pragma region 描画用のDescriptorHeapを設定(ImGui)
-			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get()};
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
 #pragma endregion
 
