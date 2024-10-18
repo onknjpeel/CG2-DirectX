@@ -133,6 +133,11 @@ Transform transformTriangle{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f }
 #pragma region cameraTransform変数
 Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} };
 #pragma endregion
+
+#pragma region TransformFence
+Transform transformFence{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
+#pragma endregion
+
 #pragma endregion
 
 #pragma region 関数群
@@ -800,7 +805,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 #pragma endregion
 
 struct D3DResourceLeakChecker {
-	~D3DResourceLeakChecker(){
+	~D3DResourceLeakChecker() {
 		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
 		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
 			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
@@ -1178,7 +1183,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 #pragma endregion
@@ -1252,6 +1257,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
 #pragma endregion
 
+	ModelData fenceData = LoadObjFile("resources", "fence.obj");
+
+	DirectX::ScratchImage mipImagesFence = LoadTexture(fenceData.material.textureFilePath);
+	const DirectX::TexMetadata& metadataFence = mipImagesFence.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> textureResourceFence = CreateTextureResource(device, metadataFence);
+	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateFence = UploadTextureData(textureResourceFence, mipImagesFence, device, commandList);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDescFence{};
+	srvDescFence.Format = metadataFence.format;
+	srvDescFence.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDescFence.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDescFence.Texture2D.MipLevels = UINT(metadataFence.mipLevels);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUFence = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUFence = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+
+	device->CreateShaderResourceView(textureResourceFence.Get(), &srvDescFence, textureSrvHandleCPUFence);
+
+#pragma region model描画
+
 #pragma region VertexResourceを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device, sizeof(VertexData) * modelData.vertices.size());
 #pragma endregion
@@ -1294,7 +1319,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
-	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
+	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData)* modelData.vertices.size());
 
 #pragma endregion
 
@@ -1323,6 +1348,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	}
 
 #pragma endregion
+
+#pragma endregion
+
+#pragma region Triangle描画
 
 #pragma region 三角形二枚用のVertexResource
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceTriangle = CreateBufferResource(device, sizeof(VertexData) * 6);
@@ -1392,6 +1421,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	indexDataTriangle[0] = 0; indexDataTriangle[1] = 1; indexDataTriangle[2] = 2;
 	indexDataTriangle[3] = 3; indexDataTriangle[4] = 4; indexDataTriangle[5] = 5;
 #pragma endregion
+
+#pragma endregion 
+
+#pragma region Sprite描画
 
 #pragma region VertexResourceSpriteを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 4);
@@ -1471,6 +1504,84 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
 #pragma endregion
 
+#pragma endregion
+
+#pragma region fence描画
+
+#pragma region VertexResourceを生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceFence = CreateBufferResource(device, sizeof(VertexData) * fenceData.vertices.size());
+#pragma endregion
+
+#pragma region Material用のResourceを作る
+	Microsoft::WRL::ComPtr <ID3D12Resource> materialResourceFence = CreateBufferResource(device, sizeof(Material));
+
+	Material* materialDataFence = nullptr;
+
+	materialResourceFence->Map(0, nullptr, reinterpret_cast<void**>(&materialDataFence));
+
+	materialDataFence->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	materialDataFence->enableLighting = true;
+	materialDataFence->uvTransform = MakeIdentity4x4();
+
+#pragma endregion
+
+#pragma region TransformationMatrix用のResourceを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceFence = CreateBufferResource(device, sizeof(TransformationMatrix));
+
+	TransformationMatrix* transformationMatrixDataFence = nullptr;
+
+	transformationMatrixResourceFence->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataFence));
+
+	transformationMatrixDataFence->WVP = MakeIdentity4x4();
+#pragma endregion
+
+#pragma region VertexBufferViewを作成
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewFence{};
+
+	vertexBufferViewFence.BufferLocation = vertexResourceFence->GetGPUVirtualAddress();
+
+	vertexBufferViewFence.SizeInBytes = UINT(sizeof(VertexData) * fenceData.vertices.size());
+
+	vertexBufferViewFence.StrideInBytes = sizeof(VertexData);
+#pragma endregion
+
+#pragma region Resourceにデータを書き込む(頂点データの更新)
+	VertexData* vertexDataFence = nullptr;
+
+	vertexResourceFence->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataFence));
+
+	std::memcpy(vertexDataFence, fenceData.vertices.data(), sizeof(VertexData) * fenceData.vertices.size());
+
+#pragma endregion
+
+#pragma region IndexResource
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceFence = CreateBufferResource(device, sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
+
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewFence{};
+
+	indexBufferViewFence.BufferLocation = indexResourceFence->GetGPUVirtualAddress();
+
+	indexBufferViewFence.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6;
+
+	indexBufferViewFence.Format = DXGI_FORMAT_R32_UINT;
+#pragma endregion
+
+#pragma region IndexResourceに書き込み
+	uint32_t* indexDataFence = nullptr;
+	indexResourceFence->Map(0, nullptr, reinterpret_cast<void**>(&indexDataFence));
+	for (uint32_t i = 0; i < kSubdivision; ++i) {
+		for (uint32_t j = 0; j < kSubdivision; ++j) {
+			uint32_t start = (i * kSubdivision + j) * 6;
+			uint32_t a = i * (kSubdivision + 1) + j;
+			indexDataFence[start] = a; indexDataFence[start + 1] = a + kSubdivision + 1; indexDataFence[start + 2] = a + 1;
+			indexDataFence[start + 3] = a + kSubdivision + 1; indexDataFence[start + 4] = a + kSubdivision + 2; indexDataFence[start + 5] = a + 1;
+		}
+	}
+
+#pragma endregion
+
+#pragma endregion
+
 #pragma region CreateDepthStencilextureResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
 #pragma endregion
@@ -1494,7 +1605,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	depthStencilDesc.DepthEnable = true;
 
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 #pragma endregion
@@ -1612,6 +1723,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			materialDataSprite->uvTransform = uvTransformMatrix;
 #pragma endregion
 
+			Matrix4x4 worldMatrixFence = MakeAffineMatrix(transformFence.scale, transformFence.rotate, transformFence.translate);
+			Matrix4x4 cameraMatrixFence = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrixFence = Inverse(cameraMatrixFence);
+			Matrix4x4 projectionMatrixFence = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
+			Matrix4x4 worldProjectionMatrixFence = Multiply(worldMatrixFence, Multiply(viewMatrixFence, projectionMatrixFence));
+			*transformationMatrixDataFence = { worldProjectionMatrixFence,worldMatrixFence };
+
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -1624,7 +1742,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
 				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
 				ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
-				ImGui::Checkbox("useMonsterBall", &useMonsterBall);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("fence")) {
+				ImGui::DragFloat3("Fence.translate", &transformFence.translate.x, 0.01f);
+				ImGui::DragFloat3("Fence.rotate", &transformFence.rotate.x, 0.01f);
+				ImGui::DragFloat3("Fence.scale", &transformFence.scale.x, 0.01f);
 				ImGui::TreePop();
 			}
 			if (ImGui::TreeNode("DirectionalLight")) {
@@ -1673,7 +1796,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 #pragma region 描画用のDescriptorHeapを設定(ImGui)
-			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get()};
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
 #pragma endregion
 
@@ -1696,10 +1819,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region DescriptorTableを設定する
-			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
 #pragma endregion
-
+//
 			commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceFence->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceFence->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUFence);
+
+			//commandList->DrawInstanced(UINT(fenceData.vertices.size()), 1, 0, 0);
 
 #pragma region 三角形二枚描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
