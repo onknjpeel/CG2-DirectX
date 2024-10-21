@@ -1581,9 +1581,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			BYTE key[256] = {};
 			keyboard->GetDeviceState(sizeof(key), key);
 */
-			input->Update()
+			input->Update();
 
-			if (key[DIK_0]) {
+			if (input->TriggerKey(DIK_0)) {
 				OutputDebugStringA("Hit 0\n");
 			}
 
