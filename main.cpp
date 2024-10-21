@@ -919,27 +919,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Log("Complete create D3D12Device!!!\n");
 #pragma endregion
 
-	/*	HRESULT result;
-
-		IDirectInput8* directInput = nullptr;
-		result = DirectInput8Create(
-			wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
-			(void**)&directInput, nullptr
-		);
-		assert(SUCCEEDED(result));
-
-		IDirectInputDevice8* keyboard = nullptr;
-		result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
-		assert(SUCCEEDED(result));
-
-		result = keyboard->SetDataFormat(&c_dfDIKeyboard);
-		assert(SUCCEEDED(result));
-
-		result = keyboard->SetCooperativeLevel(
-			hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY
-		);
-		assert(SUCCEEDED(result));*/
-
 	Input* input = nullptr;
 
 	input = new Input();
@@ -1575,12 +1554,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		else {
 			//ゲームの処理
-			/*
-			keyboard->Acquire();
 
-			BYTE key[256] = {};
-			keyboard->GetDeviceState(sizeof(key), key);
-*/
 			input->Update()
 
 			if (key[DIK_0]) {
