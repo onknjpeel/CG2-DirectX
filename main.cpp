@@ -1575,10 +1575,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		else {
 			//ゲームの処理
+			/*
 			keyboard->Acquire();
 
 			BYTE key[256] = {};
 			keyboard->GetDeviceState(sizeof(key), key);
+*/
+			input->Update()
 
 			if (key[DIK_0]) {
 				OutputDebugStringA("Hit 0\n");
