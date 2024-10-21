@@ -22,6 +22,7 @@
 #include <sstream>
 #include <wrl.h>
 #include <dinput.h>
+#include "Input.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma comment(lib,"d3d12.lib")
@@ -918,26 +919,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Log("Complete create D3D12Device!!!\n");
 #pragma endregion
 
-	HRESULT result;
+	/*	HRESULT result;
 
-	IDirectInput8* directInput = nullptr;
-	result = DirectInput8Create(
-		wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
-		(void**)&directInput, nullptr
-	);
-	assert(SUCCEEDED(result));
+		IDirectInput8* directInput = nullptr;
+		result = DirectInput8Create(
+			wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
+			(void**)&directInput, nullptr
+		);
+		assert(SUCCEEDED(result));
 
-	IDirectInputDevice8* keyboard = nullptr;
-	result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
-	assert(SUCCEEDED(result));
+		IDirectInputDevice8* keyboard = nullptr;
+		result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
+		assert(SUCCEEDED(result));
 
-	result = keyboard->SetDataFormat(&c_dfDIKeyboard);
-	assert(SUCCEEDED(result));
+		result = keyboard->SetDataFormat(&c_dfDIKeyboard);
+		assert(SUCCEEDED(result));
 
-	result = keyboard->SetCooperativeLevel(
-		hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY
-	);
-	assert(SUCCEEDED(result));
+		result = keyboard->SetCooperativeLevel(
+			hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY
+		);
+		assert(SUCCEEDED(result));*/
+
+	Input* input = nullptr;
+
+	input = new Input();
+	input->Initialize(wc.hInstance, hwnd);
 
 #ifdef _DEBUG
 
@@ -1786,6 +1792,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::string str1{ std::to_string(10) };
 
 #pragma region 解放処理
+	delete input;
 	CloseHandle(fenceEvent);
 	CloseWindow(hwnd);
 #pragma endregion
