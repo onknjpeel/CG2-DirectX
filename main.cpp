@@ -138,6 +138,9 @@ Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} 
 Transform transformFence{ {1.0f,1.0f,1.0f},{-0.5f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 #pragma endregion
 
+Transform transformPlane{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
+
+
 #pragma endregion
 
 #pragma region 関数群
@@ -1257,6 +1260,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
 #pragma endregion
 
+#pragma region fence読み込み
 	ModelData fenceData = LoadObjFile("resources", "fence.obj");
 
 	DirectX::ScratchImage mipImagesFence = LoadTexture("resources/fence.png");
@@ -1274,6 +1278,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUFence = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
 
 	device->CreateShaderResourceView(textureResourceFence.Get(), &srvDescFence, textureSrvHandleCPUFence);
+#pragma endregion
+
+#pragma region plane読み込み
+	ModelData planeData = LoadObjFile("resources", "plane.obj");
+
+	DirectX::ScratchImage mipImagesPlane = LoadTexture("resources/uvChecker.png");
+	const DirectX::TexMetadata& metadataPlane = mipImagesPlane.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> textureResourcePlane = CreateTextureResource(device, metadataPlane);
+	Microsoft::WRL::ComPtr<ID3D12Resource> intermediatePlane = UploadTextureData(textureResourcePlane, mipImagesPlane, device, commandList);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDescPlane{};
+	srvDescPlane.Format = metadataPlane.format;
+	srvDescPlane.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDescPlane.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDescPlane.Texture2D.MipLevels = UINT(metadataPlane.mipLevels);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUPlane = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUPlane = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
+
+	device->CreateShaderResourceView(textureResourcePlane.Get(), &srvDescPlane, textureSrvHandleCPUPlane);
+#pragma endregion
 
 #pragma region model描画
 
@@ -1582,6 +1607,82 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
+#pragma region plane描画
+
+#pragma region VertexResourceを生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane = CreateBufferResource(device, sizeof(VertexData) * planeData.vertices.size());
+#pragma endregion
+
+#pragma region Material用のResourceを作る
+	Microsoft::WRL::ComPtr <ID3D12Resource> materialResourcePlane = CreateBufferResource(device, sizeof(Material));
+
+	Material* materialDataPlane = nullptr;
+
+	materialResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&materialDataPlane));
+
+	materialDataPlane->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	materialDataPlane->enableLighting = true;
+	materialDataPlane->uvTransform = MakeIdentity4x4();
+
+#pragma endregion
+
+#pragma region TransformationMatrix用のResourceを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourcePlane = CreateBufferResource(device, sizeof(TransformationMatrix));
+
+	TransformationMatrix* transformationMatrixDataPlane = nullptr;
+
+	transformationMatrixResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataPlane));
+
+	transformationMatrixDataPlane->WVP = MakeIdentity4x4();
+#pragma endregion
+
+#pragma region VertexBufferViewを作成
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlane{};
+
+	vertexBufferViewPlane.BufferLocation = vertexResourcePlane->GetGPUVirtualAddress();
+
+	vertexBufferViewPlane.SizeInBytes = UINT(sizeof(VertexData) * planeData.vertices.size());
+
+	vertexBufferViewPlane.StrideInBytes = sizeof(VertexData);
+#pragma endregion
+
+#pragma region Resourceにデータを書き込む(頂点データの更新)
+	VertexData* vertexDataPlane = nullptr;
+
+	vertexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataPlane));
+
+	std::memcpy(vertexDataPlane, fenceData.vertices.data(), sizeof(VertexData) *fenceData.vertices.size());
+
+#pragma endregion
+
+#pragma region IndexResource
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourcePlane = CreateBufferResource(device, sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
+
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewPlane{};
+
+	indexBufferViewPlane.BufferLocation = indexResourcePlane->GetGPUVirtualAddress();
+
+	indexBufferViewPlane.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6;
+
+	indexBufferViewPlane.Format = DXGI_FORMAT_R32_UINT;
+#pragma endregion
+
+#pragma region IndexResourceに書き込み
+	uint32_t* indexDataPlane = nullptr;
+	indexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane));
+	for (uint32_t i = 0; i < kSubdivision; ++i) {
+		for (uint32_t j = 0; j < kSubdivision; ++j) {
+			uint32_t start = (i * kSubdivision + j) * 6;
+			uint32_t a = i * (kSubdivision + 1) + j;
+			indexDataPlane[start] = a; indexDataPlane[start + 1] = a + kSubdivision + 1; indexDataPlane[start + 2] = a + 1;
+			indexDataPlane[start + 3] = a + kSubdivision + 1; indexDataPlane[start + 4] = a + kSubdivision + 2; indexDataPlane[start + 5] = a + 1;
+		}
+	}
+
+#pragma endregion
+
+#pragma endregion
+
 #pragma region CreateDepthStencilextureResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
 #pragma endregion
@@ -1677,6 +1778,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 #pragma endregion
 
+	int32_t instanceCount = 10;
+
 	while (msg.message != WM_QUIT) {
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
@@ -1729,6 +1832,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 projectionMatrixFence = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
 			Matrix4x4 worldProjectionMatrixFence = Multiply(worldMatrixFence, Multiply(viewMatrixFence, projectionMatrixFence));
 			*transformationMatrixDataFence = { worldProjectionMatrixFence,worldMatrixFence };
+
+			Matrix4x4 worldMatrixPlane = MakeAffineMatrix(transformPlane.scale, transformPlane.rotate, transformPlane.translate);
+			Matrix4x4 cameraMatrixPlane = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrixPlane = Inverse(cameraMatrixPlane);
+			Matrix4x4 projectionMatrixPlane = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
+			Matrix4x4 worldProjectionMatrixPlane = Multiply(worldMatrixPlane, Multiply(viewMatrixPlane, projectionMatrixPlane));
+			*transformationMatrixDataPlane = { worldProjectionMatrixPlane,worldMatrixPlane };
 
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -1831,7 +1941,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewFence);
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUFence);
 
-			commandList->DrawInstanced(UINT(fenceData.vertices.size()), 1, 0, 0);
+			//commandList->DrawInstanced(UINT(fenceData.vertices.size()), 1, 0, 0);
+
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourcePlane->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourcePlane->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUPlane);
+
+			commandList->DrawInstanced(UINT(planeData.vertices.size()), instanceCount, 0, 0);
 
 #pragma region 三角形二枚描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
