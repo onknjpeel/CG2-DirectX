@@ -1,6 +1,5 @@
 #define _USE_MATH_DEFINES
 
-#include <cstdint>
 #include <string>
 #include <format>
 #include <d3d12.h>
@@ -11,7 +10,6 @@
 #include <cmath>
 #include <math.h>
 #include <vector>
-#include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
 #include "externals/DirectXTex/DirectXTex.h"
@@ -19,7 +17,7 @@
 #include <fstream>
 #include <sstream>
 #include "Input.h"
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#include "WinApp.h"
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
@@ -811,6 +809,12 @@ struct D3DResourceLeakChecker {
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3DResourceLeakChecker leakChecker;
 
+	WinApp* winApp = nullptr;
+
+	winApp = new WinApp();
+	winApp->Initialize();
+
+	/*
 #pragma region COMの初期化
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 #pragma endregion
@@ -834,7 +838,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
 #pragma endregion
+*/
 
+/*
 #pragma region ウィンドウ生成と表示
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName,
@@ -852,6 +858,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	ShowWindow(hwnd, SW_SHOW);
 #pragma endregion
+*/
 
 #ifdef _DEBUG
 
@@ -1762,6 +1769,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region 解放処理
 	delete input;
+	delete winApp;
 	CloseHandle(fenceEvent);
 	CloseWindow(hwnd);
 #pragma endregion
