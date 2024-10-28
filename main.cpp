@@ -1,7 +1,6 @@
 #define _USE_MATH_DEFINES
 #define DIRECTINPUT_VERSION	0x0800
 
-#include <Windows.h>
 #include <cstdint>
 #include <string>
 #include <format>
@@ -20,8 +19,6 @@
 #include "externals/DirectXTex/d3dx12.h"
 #include <fstream>
 #include <sstream>
-#include <wrl.h>
-#include <dinput.h>
 #include "Input.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -1555,7 +1552,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		else {
 			//ゲームの処理
 
-			input->Update()
+			input->Update();
 
 			if (key[DIK_0]) {
 				OutputDebugStringA("Hit 0\n");
