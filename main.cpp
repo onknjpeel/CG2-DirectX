@@ -1534,9 +1534,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 	while (msg.message != WM_QUIT) {
-		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+		if (winApp->ProcessMessage()) {
+			break;
 		}
 		else {
 			//ゲームの処理
