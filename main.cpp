@@ -1,10 +1,6 @@
 #define _USE_MATH_DEFINES
 
-#include <string>
 #include <format>
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#include <cassert>
 #include <dxgidebug.h>
 #include <dxcapi.h>
 #include <cmath>
@@ -18,9 +14,8 @@
 #include <sstream>
 #include "Input.h"
 #include "WinApp.h"
+#include "DXCommon.h"
 
-#pragma comment(lib,"d3d12.lib")
-#pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxcompiler.lib")
 
 #pragma region 構造体群
@@ -434,6 +429,7 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
 }
 #pragma endregion
 
+/*
 #pragma region ConvertString
 std::wstring ConvertString(const std::string& str) {
 	if (str.empty()) {
@@ -463,12 +459,15 @@ std::string ConvertString(const std::wstring& str) {
 	return result;
 }
 #pragma endregion
+*/
 
+/*
 #pragma region 出力ウィンドウに文字を出す
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
 #pragma endregion
+*/
 
 #pragma region CompilerShader関数
 Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
@@ -800,52 +799,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	winApp = new WinApp();
 	winApp->Initialize();
 
+	DXCommon* dxCommon = nullptr;
+
+	dxCommon = new DXCommon();
+	dxCommon->Initialize(winApp);
+
 	/*
-#pragma region COMの初期化
-	CoInitializeEx(0, COINIT_MULTITHREADED);
-#pragma endregion
-
-#pragma region ウィンドウクラスの登録
-	WNDCLASS wc{};
-
-	wc.lpfnWndProc = WindowProc;
-	wc.lpszClassName = L"CG2WindowClass";
-	wc.hInstance = GetModuleHandle(nullptr);
-	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-
-	RegisterClass(&wc);
-#pragma endregion
-
-#pragma region ウィンドウサイズを決める
-	const int32_t kClientWidth = 1280;
-	const int32_t kClientHeight = 720;
-
-	RECT wrc = { 0,0,kClientWidth,kClientHeight };
-
-	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
-#pragma endregion
-*/
-
-/*
-#pragma region ウィンドウ生成と表示
-	HWND hwnd = CreateWindow(
-		wc.lpszClassName,
-		L"CG2",
-		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT,
-		CW_USEDEFAULT,
-		wrc.right - wrc.left,
-		wrc.bottom - wrc.top,
-		nullptr,
-		nullptr,
-		wc.hInstance,
-		nullptr
-	);
-
-	ShowWindow(hwnd, SW_SHOW);
-#pragma endregion
-*/
-
 #ifdef _DEBUG
 
 #pragma region DebugLayer
@@ -858,6 +817,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #endif
 
+
 #pragma region DXGIFactoryの生成
 	Microsoft::WRL::ComPtr <IDXGIFactory7> dxgiFactory = nullptr;
 
@@ -865,6 +825,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	assert(SUCCEEDED(hr));
 #pragma endregion
+
+
 
 #pragma region 使用するアダプタを決定
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter = nullptr;
@@ -883,6 +845,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	assert(useAdapter != nullptr);
 #pragma endregion
+
 
 #pragma region D3D12Deviceの生成
 	Microsoft::WRL::ComPtr<ID3D12Device> device = nullptr;
@@ -904,12 +867,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n");
 #pragma endregion
+*/
 
 	Input* input = nullptr;
 
 	input = new Input();
 	input->Initialize(winApp);
 
+	/*
 #ifdef _DEBUG
 
 #pragma region エラー・警告時に停止
@@ -939,7 +904,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #endif
+*/
 
+	/*
 #pragma region コマンドキューの生成
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
@@ -964,6 +931,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	assert(SUCCEEDED(hr));
 #pragma endregion
+*/
 
 #pragma region descriptorSize
 	const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -971,6 +939,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const uint32_t descriptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 #pragma endregion
 
+	/*
 #pragma region SwapChainの生成
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain = nullptr;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
@@ -986,6 +955,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		nullptr, nullptr, reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf()));
 	assert(SUCCEEDED(hr));
 #pragma endregion
+*/
 
 #pragma region rtvDescriptorHeapの生成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
@@ -1438,6 +1408,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
 #pragma endregion
 
+	/*
 #pragma region CreateDepthStencilextureResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = CreateDepthStencilTextureResource(device, WinApp::kClientWidth, WinApp::kClientHeight);
 #pragma endregion
@@ -1465,6 +1436,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 #pragma endregion
+*/
 
 #pragma region PSOを生成する
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
@@ -1753,6 +1725,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	winApp->Finalize();
 	delete winApp;
 	winApp = nullptr;
+	delete dxCommon;
 	CloseHandle(fenceEvent);
 #pragma endregion
 
