@@ -908,7 +908,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Input* input = nullptr;
 
 	input = new Input();
-	input->Initialize(winApp->GetHInstance(), winApp->GetHwnd());
+	input->Initialize(winApp);
 
 #ifdef _DEBUG
 
@@ -1745,19 +1745,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ImGui::DestroyContext();
 #pragma endregion
 
-#pragma region COMの終了処理
-	CoUninitialize();
-#pragma endregion
-
 	std::string str0{ "STRING!!!" };
 
 	std::string str1{ std::to_string(10) };
 
 #pragma region 解放処理
 	delete input;
+	winApp->Finalize();
 	delete winApp;
+	winApp = nullptr;
 	CloseHandle(fenceEvent);
-	CloseWindow(winApp->GetHwnd());
 #pragma endregion
 
 #pragma region ReportLiveObjects
