@@ -1,13 +1,9 @@
 #define _USE_MATH_DEFINES
 
-#include <format>
 #include <dxgidebug.h>
-#include <dxcapi.h>
 #include <cmath>
 #include <math.h>
 #include <vector>
-#include "externals/imgui/imgui_impl_dx12.h"
-#include "externals/imgui/imgui_impl_win32.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/DirectXTex/d3dx12.h"
 #include <fstream>
@@ -411,6 +407,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(Microsoft::WRL::ComP
 }
 #pragma endregion
 
+/*
 #pragma region DescriptorHeapの作成関数
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
 	Microsoft::WRL::ComPtr<ID3D12Device> device,
@@ -428,6 +425,7 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
 	return descriptorHeap;
 }
 #pragma endregion
+*/
 
 /*
 #pragma region ConvertString
@@ -608,6 +606,8 @@ Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(Microsoft::WRL::ComPtr<
 }
 #pragma endregion
 
+#pragma region
+/*
 #pragma region DepthStencilTextureを作る
 Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height) {
 #pragma region Resource/Heapの設定を行う
@@ -646,6 +646,8 @@ Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(Microso
 #pragma endregion
 }
 #pragma endregion
+*/
+#pragma endregion
 
 #pragma region DepthFunc
 bool DepthFunc(float currZ, float prevZ) {
@@ -653,6 +655,7 @@ bool DepthFunc(float currZ, float prevZ) {
 }
 #pragma endregion
 
+/*
 #pragma region GetCPUDescriptorHandle
 D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index) {
 	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -668,6 +671,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12
 	return handleGPU;
 }
 #pragma endregion
+*/
 
 #pragma region マテリアルデータを読む関数
 MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
@@ -804,6 +808,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxCommon = new DXCommon();
 	dxCommon->Initialize(winApp);
 
+#pragma region
 	/*
 #ifdef _DEBUG
 
@@ -868,12 +873,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Log("Complete create D3D12Device!!!\n");
 #pragma endregion
 */
+#pragma endregion
 
 	Input* input = nullptr;
 
 	input = new Input();
 	input->Initialize(winApp);
 
+#pragma region
 	/*
 #ifdef _DEBUG
 
@@ -933,11 +940,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 */
 
+/*
 #pragma region descriptorSize
 	const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	const uint32_t descriptorSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	const uint32_t descriptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 #pragma endregion
+	*/
 
 	/*
 #pragma region SwapChainの生成
@@ -957,6 +966,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 */
 
+	/*
 #pragma region rtvDescriptorHeapの生成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 #pragma endregion
@@ -964,7 +974,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region srvDescriptorHeapの生成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 120, true);
 #pragma endregion
+*/
 
+	/*
 #pragma region SwapChainからResourceを引っ張ってくる
 	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = { nullptr };
 
@@ -975,7 +987,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr));
 #pragma endregion
 
-#pragma region RTVを作る
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -989,18 +1000,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	rtvHandles[1] = GetCPUDescriptorHandle(rtvDescriptorHeap, descriptorSizeRTV, 1);
 	device->CreateRenderTargetView(swapChainResources->GetAddressOf()[1], &rtvDesc, rtvHandles[1]);
-#pragma endregion
 
 #pragma region FenceとEventを生成する
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
 	uint64_t fenceValue = 0;
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
+*/
 
 	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent != nullptr);
 #pragma endregion
 
+#pragma endregion
+
+/*
 #pragma region DXCの初期化
 	IDxcUtils* dxcUtils = nullptr;
 	IDxcCompiler3* dxcCompiler = nullptr;
@@ -1013,6 +1027,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
 	assert(SUCCEEDED(hr));
 #pragma endregion
+	*/
 
 #pragma region RootSignatureを生成
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
@@ -1467,6 +1482,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
+	/*
 #pragma region ビューポート
 	D3D12_VIEWPORT viewport{};
 
@@ -1486,12 +1502,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	scissorRect.top = 0;
 	scissorRect.bottom = WinApp::kClientHeight;
 #pragma endregion
+*/
 
 	//文字出力
 	OutputDebugStringA("Hello,DirectX!\n");
 
 	MSG msg{};
 
+	/*
 #pragma region ImGuiの初期化
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -1504,6 +1522,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
 		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 #pragma endregion
+*/
 
 	while (msg.message != WM_QUIT) {
 		if (winApp->ProcessMessage()) {
