@@ -913,7 +913,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #endif
 */
 
-	/*
+/*
 #pragma region コマンドキューの生成
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
@@ -966,7 +966,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 */
 
-	/*
+/*
 #pragma region rtvDescriptorHeapの生成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 #pragma endregion
@@ -976,7 +976,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 */
 
-	/*
+/*
 #pragma region SwapChainからResourceを引っ張ってくる
 	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = { nullptr };
 
@@ -1006,28 +1006,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	uint64_t fenceValue = 0;
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
-*/
 
 	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent != nullptr);
-#pragma endregion
-
-#pragma endregion
-
-/*
-#pragma region DXCの初期化
-	IDxcUtils* dxcUtils = nullptr;
-	IDxcCompiler3* dxcCompiler = nullptr;
-	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
-	assert(SUCCEEDED(hr));
-	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
-	assert(SUCCEEDED(hr));
-
-	IDxcIncludeHandler* includeHandler = nullptr;
-	hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
-	assert(SUCCEEDED(hr));
-#pragma endregion
 	*/
+#pragma endregion
+
+#pragma endregion
+
+	/*
+	#pragma region DXCの初期化
+		IDxcUtils* dxcUtils = nullptr;
+		IDxcCompiler3* dxcCompiler = nullptr;
+		hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
+		assert(SUCCEEDED(hr));
+		hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
+		assert(SUCCEEDED(hr));
+
+		IDxcIncludeHandler* includeHandler = nullptr;
+		hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
+		assert(SUCCEEDED(hr));
+	#pragma endregion
+		*/
 
 #pragma region RootSignatureを生成
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
@@ -1504,7 +1504,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 */
 
-	//文字出力
+//文字出力
 	OutputDebugStringA("Hello,DirectX!\n");
 
 	MSG msg{};
@@ -1576,7 +1576,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region コマンドを積み込み確定させる
+
+			/*
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+*/
 
 #pragma region ImGuiの処理
 			ImGui::ShowDemoWindow();
@@ -1611,6 +1614,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region TransitionBarrierを貼る
+			/*
 			D3D12_RESOURCE_BARRIER barrier{};
 
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -1624,25 +1628,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
 			commandList->ResourceBarrier(1, &barrier);
+*/
 #pragma endregion
 
 #pragma region DSVを設定する
-			D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
+/*
+D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
+*/
 #pragma endregion
 
-			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
-			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
-			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+/*
+float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
+commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+*/
 
 #pragma region 描画用のDescriptorHeapを設定(ImGui)
-			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
-			commandList->SetDescriptorHeaps(1, descriptorHeaps);
+/*
+ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
+commandList->SetDescriptorHeaps(1, descriptorHeaps);
+*/
 #pragma endregion
 
 #pragma region コマンドを積む
-			commandList->RSSetViewports(1, &viewport);
-			commandList->RSSetScissorRects(1, &scissorRect);
+/*
+commandList->RSSetViewports(1, &viewport);
+commandList->RSSetScissorRects(1, &scissorRect);
+*/
 
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
 			commandList->SetPipelineState(graphicsPipelineState.Get());
@@ -1687,43 +1700,57 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region 画面表示をできるようにする
-			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			dxCommon->PreDraw();
+			/*
+						barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-			commandList->ResourceBarrier(1, &barrier);
+						barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+						commandList->ResourceBarrier(1, &barrier);
+			*/
 #pragma endregion
+			/*
 			hr = commandList->Close();
 
 			assert(SUCCEEDED(hr));
+*/
 #pragma endregion
 
 #pragma region コマンドをキックする
-			Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = { commandList };
-			commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
+/*
+Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = { commandList };
+commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
 
-			swapChain->Present(1, 0);
+swapChain->Present(1, 0);
+*/
 
 #pragma region GPUにSignalを送る
-			fenceValue++;
+/*
+fenceValue++;
 
-			commandQueue->Signal(fence.Get(), fenceValue);
+commandQueue->Signal(fence.Get(), fenceValue);
+*/
 
 #pragma endregion
 
 #pragma region Fenceの値を確認してGPUを待つ
-			if (fence->GetCompletedValue() < fenceValue) {
-				fence->SetEventOnCompletion(fenceValue, fenceEvent);
+/*
+if (fence->GetCompletedValue() < fenceValue) {
+	fence->SetEventOnCompletion(fenceValue, fenceEvent);
 
-				WaitForSingleObject(fenceEvent, INFINITE);
-			}
+	WaitForSingleObject(fenceEvent, INFINITE);
+}
+*/
 #pragma endregion
+/*
+hr = commandAllocator->Reset();
+assert(SUCCEEDED(hr));
 
-			hr = commandAllocator->Reset();
-			assert(SUCCEEDED(hr));
-
-			hr = commandList->Reset(commandAllocator.Get(), nullptr);
-			assert(SUCCEEDED(hr));
+hr = commandList->Reset(commandAllocator.Get(), nullptr);
+assert(SUCCEEDED(hr));
+*/
+			dxCommon->PostDraw();
 #pragma endregion
 
 		}
