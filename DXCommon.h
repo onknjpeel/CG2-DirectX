@@ -48,8 +48,12 @@ public:
 	void MakeScissorRect();
 
 	void MakeDXCCompiler();
-	
+
 	void InitImGui();
+
+	void PreDraw();
+
+	void PostDraw();
 
 private:;
 	   Microsoft::WRL::ComPtr<ID3D12Device> device;
@@ -76,7 +80,13 @@ private:;
 	   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
 	   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
 
+	   D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
+
 	   D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+
+	   Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
+	   uint64_t fenceValue = 0;
+	   HANDLE fenceEvent;
 
 	   std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, 2> swapChainResources;
 
@@ -86,6 +96,8 @@ private:;
 	   IDxcUtils* dxcUtils = nullptr;
 	   IDxcCompiler3* dxcCompiler = nullptr;
 	   IDxcIncludeHandler* includeHandler = nullptr;
+
+	   D3D12_RESOURCE_BARRIER barrier{};
 
 	   WinApp* winApp = nullptr;
 };

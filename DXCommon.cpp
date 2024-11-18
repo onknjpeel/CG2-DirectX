@@ -238,7 +238,7 @@ void DXCommon::InitRTV()
 {
 	HRESULT hr;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = { nullptr };
+//	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = { nullptr };
 
 	hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
 	assert(SUCCEEDED(hr));
@@ -249,11 +249,9 @@ void DXCommon::InitRTV()
 	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
-
 	for (uint32_t i = 0; i < 2; ++i) {
 		rtvHandles[i] = GetCPUDescriptorHandle(rtvDescriptorHeap, descriptorSizeRTV, i);
-		device->CreateRenderTargetView(swapChainResources->GetAddressOf()[i], &rtvDesc, rtvHandles[i]);
+		device->CreateRenderTargetView(swapChainResources[i].GetAddressOf(), &rtvDesc, rtvHandles[i]);
 	}
 }
 
@@ -267,10 +265,12 @@ void DXCommon::InitDSV()
 void DXCommon::CreateFence()
 {
 	HRESULT hr;
-	Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
-	uint64_t fenceValue = 0;
+	fenceValue = 0;
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
+
+	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	assert(fenceEvent != nullptr);
 }
 
 void DXCommon::MakeViewport()
@@ -316,4 +316,64 @@ void DXCommon::InitImGui()
 		srvDescriptorHeap.Get(),
 		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
 		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void DXCommon::PreDraw()
+{
+	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = swapChainResources[backBufferIndex].GetAddressOf();
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	commandList->ResourceBarrier(1, &barrier);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
+
+	float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
+	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+
+	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
+	commandList->SetDescriptorHeaps(1, descriptorHeaps);
+
+	commandList->RSSetViewports(1, &viewport);
+
+	commandList->RSSetScissorRects(1, &scissorRect);
+}
+
+void DXCommon::PostDraw()
+{
+	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	commandList->ResourceBarrier(1, &barrier);
+
+	HRESULT hr;
+	hr = commandList->Close();
+	assert(SUCCEEDED(hr));
+
+	Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = { commandList };
+	commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
+
+	swapChain->Present(1, 0);
+
+	fenceValue++;
+
+	commandQueue->Signal(fence.Get(), fenceValue);
+
+	if (fence->GetCompletedValue() < fenceValue) {
+		fence->SetEventOnCompletion(fenceValue, fenceEvent);
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+
+	hr = commandAllocator->Reset();
+	assert(SUCCEEDED(hr));
+
+	hr = commandList->Reset(commandAllocator.Get(), nullptr);
+	assert(SUCCEEDED(hr));
 }

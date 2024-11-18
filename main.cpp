@@ -1006,10 +1006,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	uint64_t fenceValue = 0;
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
-*/
 
 	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent != nullptr);
+	*/
 #pragma endregion
 
 #pragma endregion
@@ -1576,7 +1576,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region コマンドを積み込み確定させる
+			
+			/*
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+*/
 
 #pragma region ImGuiの処理
 			ImGui::ShowDemoWindow();
@@ -1611,6 +1614,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region TransitionBarrierを貼る
+			/*
 			D3D12_RESOURCE_BARRIER barrier{};
 
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -1624,25 +1628,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
 			commandList->ResourceBarrier(1, &barrier);
+*/
 #pragma endregion
 
 #pragma region DSVを設定する
+			/*
 			D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
+*/
 #pragma endregion
 
+			/*
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+*/
 
 #pragma region 描画用のDescriptorHeapを設定(ImGui)
+			/*
 			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
+*/
 #pragma endregion
 
 #pragma region コマンドを積む
+			/*
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
+*/
 
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
 			commandList->SetPipelineState(graphicsPipelineState.Get());
@@ -1687,43 +1700,57 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region 画面表示をできるようにする
+			
+			dxCommon->PreDraw();
+/*
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 
 			commandList->ResourceBarrier(1, &barrier);
+*/
 #pragma endregion
+			/*
 			hr = commandList->Close();
 
 			assert(SUCCEEDED(hr));
+*/
 #pragma endregion
 
 #pragma region コマンドをキックする
+			/*
 			Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = { commandList };
 			commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
 
 			swapChain->Present(1, 0);
+*/
 
 #pragma region GPUにSignalを送る
+			/*
 			fenceValue++;
 
 			commandQueue->Signal(fence.Get(), fenceValue);
+*/
 
 #pragma endregion
 
 #pragma region Fenceの値を確認してGPUを待つ
+			/*
 			if (fence->GetCompletedValue() < fenceValue) {
 				fence->SetEventOnCompletion(fenceValue, fenceEvent);
 
 				WaitForSingleObject(fenceEvent, INFINITE);
 			}
+*/
 #pragma endregion
-
+			/*
 			hr = commandAllocator->Reset();
 			assert(SUCCEEDED(hr));
 
 			hr = commandList->Reset(commandAllocator.Get(), nullptr);
 			assert(SUCCEEDED(hr));
+*/
+			dxCommon->PostDraw();
 #pragma endregion
 
 		}
