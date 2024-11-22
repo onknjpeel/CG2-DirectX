@@ -5,6 +5,8 @@
 #include "WinApp.h"
 #include <array>
 #include <dxcapi.h>
+#include "externals/DirectXTex/DirectXTex.h"
+#include "StringUtility.h"
 
 class DXCommon
 {
@@ -54,6 +56,23 @@ public:
 	void PreDraw();
 
 	void PostDraw();
+
+	ID3D12Device* GetDevice()const { return device.Get(); }
+
+	ID3D12GraphicsCommandList* GetCommandList()const { return commandList.Get(); }
+
+	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
+		const std::wstring& filePath,
+		const wchar_t* profile
+	);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, const DirectX::TexMetadata& metadata);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages);
+
+	DirectX::ScratchImage LoadTexture(const std::string& filePath);
 
 private:;
 	   Microsoft::WRL::ComPtr<ID3D12Device> device;
