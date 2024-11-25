@@ -252,7 +252,7 @@ void DXCommon::InitRTV()
 
 	for (uint32_t i = 0; i < 2; ++i) {
 		rtvHandles[i] = GetCPUDescriptorHandle(rtvDescriptorHeap, descriptorSizeRTV, i);
-		device->CreateRenderTargetView(swapChainResources[i].GetAddressOf(), &rtvDesc, rtvHandles[i]);
+		device->CreateRenderTargetView(swapChainResources[i].Get(), &rtvDesc, rtvHandles[i]);
 	}
 }
 
@@ -325,7 +325,7 @@ void DXCommon::PreDraw()
 
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = swapChainResources[backBufferIndex].GetAddressOf();
+	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	commandList->ResourceBarrier(1, &barrier);
