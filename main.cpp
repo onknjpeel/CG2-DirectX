@@ -1070,13 +1070,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 #pragma endregion
 
+	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
+	descriptorRangeForInstancing[0].BaseShaderRegister = 0;
+	descriptorRangeForInstancing[0].NumDescriptors = 1;
+	descriptorRangeForInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRangeForInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
 	rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameter[0].Descriptor.ShaderRegister = 0;
 
+	/*
 	rootParameter[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameter[1].Descriptor.ShaderRegister = 0;
+	*/
+
+	rootParameter[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameter[1].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
+	rootParameter[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
 
 #pragma region DescriptorTable
 	rootParameter[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -1200,19 +1213,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(pixelShaderBlob != nullptr);
 #pragma endregion
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
+	/*Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
 
 	DirectionalLight* directionalLightData = nullptr;
 
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
 
-	*directionalLightData = DirectionalLight({ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f,-1.0f,0.0f }, 1.0f);
+	*directionalLightData = DirectionalLight({ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f,-1.0f,0.0f }, 1.0f);*/
 
 #pragma region 球作成用変数宣言
 	uint32_t kSubdivision = 30;
 
 	uint32_t startIndex = kSubdivision * kSubdivision * 6;
 #pragma endregion
+
+	const uint32_t kNumInstance = 10;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device, sizeof(TransformationMatrix) * kNumInstance);
+	TransformationMatrix* instancingData = nullptr;
+	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
+
+	for (uint32_t index = 0; index < kNumInstance; ++index) {
+		instancingData[index].WVP = MakeIdentity4x4();
+		instancingData[index].World = MakeIdentity4x4();
+	}
 
 #pragma region モデル読み込み
 	ModelData modelData = LoadObjFile("resources", "axis.obj");
@@ -1259,6 +1283,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
 #pragma endregion
 
+	D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
+	instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	instancingSrvDesc.Buffer.FirstElement = 0;
+	instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	instancingSrvDesc.Buffer.NumElements = kNumInstance;
+	instancingSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
+	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+	device->CreateShaderResourceView(instancingResource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
+
 #pragma region fence読み込み
 	ModelData fenceData = LoadObjFile("resources", "fence.obj");
 
@@ -1273,8 +1309,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDescFence.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDescFence.Texture2D.MipLevels = UINT(metadataFence.mipLevels);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUFence = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUFence = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUFence = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUFence = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
 
 	device->CreateShaderResourceView(textureResourceFence.Get(), &srvDescFence, textureSrvHandleCPUFence);
 #pragma endregion
@@ -1293,12 +1329,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDescPlane.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDescPlane.Texture2D.MipLevels = UINT(metadataPlane.mipLevels);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUPlane = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUPlane = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 4);
+	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUPlane = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 5);
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUPlane = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 5);
 
 	device->CreateShaderResourceView(textureResourcePlane.Get(), &srvDescPlane, textureSrvHandleCPUPlane);
 #pragma endregion
 
+	Transform transforms[kNumInstance];
+	for (uint32_t index = 0; index < kNumInstance; ++index) {
+		transforms[index].scale = { 1.0f,1.0f,1.0f };
+		transforms[index].rotate = { 0.0f,0.0f,0.0f };
+		transforms[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
+	}
 
 #pragma region model描画
 
@@ -1839,6 +1881,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 worldProjectionMatrixPlane = Multiply(worldMatrixPlane, Multiply(viewMatrixPlane, projectionMatrixPlane));
 			*transformationMatrixDataPlane = { worldProjectionMatrixPlane,worldMatrixPlane };
 
+			for (uint32_t index = 0; index < kNumInstance; ++index) {
+				Matrix4x4 WorldMatrix = MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
+				Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
+				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+				instancingData[index].WVP = worldViewProjectionMatrix;
+				instancingData[index].World = worldMatrix;
+			}
+
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -1859,12 +1909,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::DragFloat3("Fence.scale", &transformFence.scale.x, 0.01f);
 				ImGui::TreePop();
 			}
-			if (ImGui::TreeNode("DirectionalLight")) {
+			/*if (ImGui::TreeNode("DirectionalLight")) {
 				ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
 				directionalLightData->direction = Normalize(directionalLightData->direction);
 				ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
 				ImGui::TreePop();
-			}
+			}*/
 			if (ImGui::TreeNode("UV")) {
 				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
@@ -1922,33 +1972,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 #pragma region CBVを設定する
-			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 #pragma endregion
 
 #pragma region DescriptorTableを設定する
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
+			//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
 #pragma endregion
-
+/*
 			//commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceFence->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceFence->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewFence);
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUFence);
 
 			//commandList->DrawInstanced(UINT(fenceData.vertices.size()), 1, 0, 0);
-
+*/
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourcePlane->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourcePlane->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourcePlane->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
+			commandList->SetGraphicsRootDescriptorTable(1, instancingSrvHandleGPU);
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUPlane);
 
-			commandList->DrawInstanced(UINT(planeData.vertices.size()), 10, 0, 0);
+			commandList->DrawInstanced(UINT(planeData.vertices.size()), kNumInstance, 0, 0);
 
 #pragma region 三角形二枚描画
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
