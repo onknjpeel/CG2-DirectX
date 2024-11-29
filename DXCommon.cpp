@@ -111,8 +111,6 @@ void DXCommon::InitDevice()
 		filter.DenyList.pSeverityList = severities;
 
 		infoQueue->PushStorageFilter(&filter);
-
-
 	}
 
 #endif
@@ -225,14 +223,29 @@ D3D12_CPU_DESCRIPTOR_HANDLE DXCommon::GetSRVCPUDescriptorHandle(uint32_t index)
 	return GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, index);
 }
 
+D3D12_GPU_DESCRIPTOR_HANDLE DXCommon::GetSRVGPUDescriptorHandle(uint32_t index)
+{
+	return GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, index);
+}
+
 D3D12_CPU_DESCRIPTOR_HANDLE DXCommon::GetRTVCPUDescriptorHandle(uint32_t index)
 {
 	return GetCPUDescriptorHandle(rtvDescriptorHeap, descriptorSizeRTV, index);
 }
 
+D3D12_GPU_DESCRIPTOR_HANDLE DXCommon::GetRTVGPUDescriptorHandle(uint32_t index)
+{
+	return GetGPUDescriptorHandle(rtvDescriptorHeap, descriptorSizeRTV, index);
+}
+
 D3D12_CPU_DESCRIPTOR_HANDLE DXCommon::GetDSVCPUDescriptorHandle(uint32_t index)
 {
 	return GetCPUDescriptorHandle(dsvDescriptorHeap, descriptorSizeDSV, index);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DXCommon::GetDSVGPUDescriptorHandle(uint32_t index)
+{
+	return GetGPUDescriptorHandle(dsvDescriptorHeap, descriptorSizeDSV, index);
 }
 
 void DXCommon::InitRTV()
@@ -496,6 +509,43 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateTextureResource(Microsoft
 	return resource;
 #pragma endregion
 
+}
+
+Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateDepthStencilTextureResource( int32_t width, int32_t height) {
+#pragma region Resource/Heapの設定を行う
+	D3D12_RESOURCE_DESC resourceDesc{};
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+#pragma endregion
+
+#pragma region 深度地のクリア最適化設定
+	D3D12_CLEAR_VALUE depthClearValue{};
+	depthClearValue.DepthStencil.Depth = 1.0f;
+	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+#pragma endregion
+
+#pragma region Resourceの生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
+	HRESULT hr = device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthClearValue,
+		IID_PPV_ARGS(&resource)
+	);
+	assert(SUCCEEDED(hr));
+	return resource;
+#pragma endregion
 }
 
 Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages)
