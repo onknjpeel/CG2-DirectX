@@ -7,9 +7,11 @@
 #include "externals/imgui/imgui_impl_dx12.h"
 #include <vector>
 #include "externals/DirectXTex/d3dx12.h"
+#include <thread>
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
+#pragma comment(lib,"winmm.lib")
 
 using namespace Microsoft::WRL;
 using namespace Logger;
@@ -346,6 +348,8 @@ void DXCommon::InitImGui()
 
 void DXCommon::PreDraw()
 {
+	InitializeFixFPS();
+
 	// バックバッファの番号を取得
 	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -398,11 +402,13 @@ void DXCommon::PostDraw()
 
 	fenceValue++;
 
-	commandQueue->Signal(fence.Get(), fenceValue);
-
-	if (fence->GetCompletedValue() < fenceValue) {
-		fence->SetEventOnCompletion(fenceValue, fenceEvent);
-		WaitForSingleObject(fenceEvent, INFINITE);
+	commandQueue->Signal(fence.Get(), ++fenceValue);
+	if (fence->GetCompletedValue() != fenceValue) {
+		HANDLE event = CreateEvent(nullptr, false, false, nullptr);
+		fence->SetEventOnCompletion(fenceValue, event);
+		WaitForSingleObject(event, INFINITE);
+		UpdateFixFPS();
+		CloseHandle(event);
 	}
 
 	hr = commandAllocator->Reset();
@@ -471,7 +477,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& fil
 #pragma endregion
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateBufferResource( size_t sizeInBytes)
+Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateBufferResource(size_t sizeInBytes)
 {
 	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
 	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -531,7 +537,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateTextureResource(Microsoft
 
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateDepthStencilTextureResource( int32_t width, int32_t height) {
+Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateDepthStencilTextureResource(int32_t width, int32_t height) {
 #pragma region Resource/Heapの設定を行う
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;
@@ -601,4 +607,29 @@ DirectX::ScratchImage DXCommon::LoadTexture(const std::string& filePath)
 	assert(SUCCEEDED(hr));
 
 	return mipImages;
+}
+
+void DXCommon::InitializeFixFPS()
+{
+	reference_ = std::chrono::steady_clock::now();
+
+	timeBeginPeriod(1);
+}
+
+void DXCommon::UpdateFixFPS()
+{
+	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+
+	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+	std::chrono::microseconds elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
+
+	if (elapsed < kMinCheckTime) {
+		while (std::chrono::steady_clock::now() - reference_ < kMinTime) {
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+		}
+	}
+	reference_ = std::chrono::steady_clock::now();
 }

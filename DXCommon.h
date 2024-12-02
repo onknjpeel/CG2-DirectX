@@ -7,6 +7,7 @@
 #include <dxcapi.h>
 #include "externals/DirectXTex/DirectXTex.h"
 #include "StringUtility.h"
+#include <chrono>
 
 class DXCommon
 {
@@ -81,6 +82,10 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages);
 
 	DirectX::ScratchImage LoadTexture(const std::string& filePath);
+private:
+	void InitializeFixFPS();
+
+	void UpdateFixFPS();
 
 private:;
 	   Microsoft::WRL::ComPtr<ID3D12Device> device;
@@ -129,6 +134,8 @@ private:;
 	   IDxcIncludeHandler* includeHandler = nullptr;
 
 	   D3D12_RESOURCE_BARRIER barrier{};
+
+	   std::chrono::steady_clock::time_point reference_;
 
 	   WinApp* winApp = nullptr;
 };
