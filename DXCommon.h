@@ -109,6 +109,8 @@ private:;
 
 	   D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
 
+	   D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
+
 	   D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 
 	   Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
@@ -116,6 +118,8 @@ private:;
 	   HANDLE fenceEvent;
 
 	   std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, 2> swapChainResources;
+
+	   Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource;
 
 	   D3D12_VIEWPORT viewport{};
 	   D3D12_RECT scissorRect{};

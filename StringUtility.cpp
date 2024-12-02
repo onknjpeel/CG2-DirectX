@@ -1,5 +1,5 @@
 #include "StringUtility.h"
-#include <stringapiset.h>
+#include <windows.h>
 
 namespace StringUtility {
 #pragma region ConvertString

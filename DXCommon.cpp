@@ -201,7 +201,7 @@ void DXCommon::MakeDescriptorHeap()
 
 	rtvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 120, true);
-	dsvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 120, true);
+	dsvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE DXCommon::GetCPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index)
@@ -252,28 +252,40 @@ void DXCommon::InitRTV()
 {
 	HRESULT hr;
 
-	//	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = { nullptr };
+	// スワップチェーンからリソースを取得
+	for (uint32_t i = 0; i < 2; ++i) {
+		hr = swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainResources[i]));
+		assert(SUCCEEDED(hr));
+	}
 
-	hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
-	assert(SUCCEEDED(hr));
-
-	hr = swapChain->GetBuffer(1, IID_PPV_ARGS(&swapChainResources[1]));
-	assert(SUCCEEDED(hr));
-
+	// RTV用の設定
 	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
+	// RTVハンドルを取得し、レンダーターゲットビューを生成
 	for (uint32_t i = 0; i < 2; ++i) {
 		rtvHandles[i] = GetCPUDescriptorHandle(rtvDescriptorHeap, descriptorSizeRTV, i);
+
+		// レンダーターゲットビューの生成
 		device->CreateRenderTargetView(swapChainResources[i].Get(), &rtvDesc, rtvHandles[i]);
 	}
 }
 
 void DXCommon::InitDSV()
 {
-	MakeDepthBuffer();
+	depthStencilResource = CreateDepthStencilTextureResource(WinApp::kClientWidth, WinApp::kClientHeight);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	// MakeDepthBuffer();
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+
+	/*D3D12_CPU_DESCRIPTOR_HANDLE*/ //dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	device->CreateDepthStencilView(
+		depthStencilResource.Get(),
+		&dsvDesc,
+		dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void DXCommon::CreateFence()
@@ -334,8 +346,10 @@ void DXCommon::InitImGui()
 
 void DXCommon::PreDraw()
 {
+	// バックバッファの番号を取得
 	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
+	// リソースバリアを設定（描画可能状態に遷移）
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
@@ -343,19 +357,25 @@ void DXCommon::PreDraw()
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	commandList->ResourceBarrier(1, &barrier);
 
+	// 描画先のRTVとDSVを指定
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
 
-	float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };
+	// 画面全体の色をクリア
+	float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f };
 	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
+	// 画面全体の深度をクリア
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+	// SRV用のデスクリプタヒープを指定
 	ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 	commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
+	// ビューポート領域の設定
 	commandList->RSSetViewports(1, &viewport);
 
+	// シザー矩形の設定
 	commandList->RSSetScissorRects(1, &scissorRect);
 }
 
