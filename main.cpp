@@ -104,6 +104,11 @@ struct ModelData {
 	MaterialData material;
 };
 #pragma endregion
+
+struct Particle {
+	Transform transform;
+	Vector3 velocity;
+};
 #pragma endregion
 
 #pragma region 変数群
@@ -1335,12 +1340,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResourcePlane.Get(), &srvDescPlane, textureSrvHandleCPUPlane);
 #pragma endregion
 
-	Transform transforms[kNumInstance];
+	/*Transform transforms[kNumInstance];
 	for (uint32_t index = 0; index < kNumInstance; ++index) {
 		transforms[index].scale = { 1.0f,1.0f,1.0f };
 		transforms[index].rotate = { 0.0f,0.0f,0.0f };
 		transforms[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
+	}*/
+
+	Particle particles[kNumInstance];
+	for (uint32_t index = 0; index < kNumInstance; ++index) {
+		particles[index].transform.scale = { 1.0f,1.0f,1.0f };
+		particles[index].transform.rotate = { 0.0f,0.0f,0.0f };
+		particles[index].transform.translate = { index * 0.1f,index * 0.1f,index * 0.1f };
+		particles[index].velocity = { 0.0f,1.0f,0.0f };
 	}
+
+	const float kDeltaTime = 1.0f / 60.0f;
 
 #pragma region model描画
 
@@ -1693,7 +1708,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	vertexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataPlane));
 
-	std::memcpy(vertexDataPlane, fenceData.vertices.data(), sizeof(VertexData) * fenceData.vertices.size());
+	std::memcpy(vertexDataPlane, planeData.vertices.data(), sizeof(VertexData) * planeData.vertices.size());
 
 #pragma endregion
 
@@ -1843,35 +1858,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region WVPMatrixを作って書き込む//sprite
-			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+			/*Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
 			Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
 			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
-			*transformationMatrixDataSprite = { worldViewProjectionMatrixSprite, worldMatrixSprite };
+			*transformationMatrixDataSprite = { worldViewProjectionMatrixSprite, worldMatrixSprite };*/
 #pragma endregion
 
 #pragma region Transformを使って書き込む//三角形二枚
-			Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
+			/*Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
 			Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrixTriangle = Inverse(cameraMatrixTriangle);
 			Matrix4x4 projectionMatrixTriangle = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
 			Matrix4x4 worldProjectionMatrixTriangle = Multiply(worldMatrixTriangle, Multiply(viewMatrixTriangle, projectionMatrixTriangle));
-			*transformationMatrixDataTriangle = { worldProjectionMatrixTriangle ,worldMatrixTriangle };
+			*transformationMatrixDataTriangle = { worldProjectionMatrixTriangle ,worldMatrixTriangle };*/
 #pragma endregion
 
 #pragma region UVTransform行列
-			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+			/*Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
-			materialDataSprite->uvTransform = uvTransformMatrix;
+			materialDataSprite->uvTransform = uvTransformMatrix;*/
 #pragma endregion
 
-			Matrix4x4 worldMatrixFence = MakeAffineMatrix(transformFence.scale, transformFence.rotate, transformFence.translate);
+			/*Matrix4x4 worldMatrixFence = MakeAffineMatrix(transformFence.scale, transformFence.rotate, transformFence.translate);
 			Matrix4x4 cameraMatrixFence = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrixFence = Inverse(cameraMatrixFence);
 			Matrix4x4 projectionMatrixFence = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
 			Matrix4x4 worldProjectionMatrixFence = Multiply(worldMatrixFence, Multiply(viewMatrixFence, projectionMatrixFence));
-			*transformationMatrixDataFence = { worldProjectionMatrixFence,worldMatrixFence };
+			*transformationMatrixDataFence = { worldProjectionMatrixFence,worldMatrixFence };*/
 
 
 			Matrix4x4 worldMatrixPlane = MakeAffineMatrix(transformPlane.scale, transformPlane.rotate, transformPlane.translate);
@@ -1882,11 +1897,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			*transformationMatrixDataPlane = { worldProjectionMatrixPlane,worldMatrixPlane };
 
 			for (uint32_t index = 0; index < kNumInstance; ++index) {
-				Matrix4x4 WorldMatrix = MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
+				Matrix4x4 WorldMatrix = MakeAffineMatrix(particles[kNumInstance].transform.scale, particles[kNumInstance].transform.rotate, particles[kNumInstance].transform.translate);
 				Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
 				Matrix4x4 WorldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
 				instancingData[index].WVP = WorldViewProjectionMatrix;
 				instancingData[index].World = worldMatrix;
+
+				particles[index].velocity = {
+					particles[index].velocity.x * kDeltaTime,
+				particles[index].velocity.y * kDeltaTime,
+				particles[index].velocity.z * kDeltaTime
+				};
+				particles[index].transform.translate.x += particles[index].velocity.x;
+				particles[index].transform.translate.y += particles[index].velocity.y;
+				particles[index].transform.translate.z += particles[index].velocity.z;
 			}
 
 #pragma region コマンドを積み込み確定させる
@@ -1909,12 +1933,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::DragFloat3("Fence.scale", &transformFence.scale.x, 0.01f);
 				ImGui::TreePop();
 			}
-			/*if (ImGui::TreeNode("DirectionalLight")) {
-				ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
-				directionalLightData->direction = Normalize(directionalLightData->direction);
-				ImGui::DragFloat("intensity", &directionalLightData->intensity, 0.01f);
+			if (ImGui::TreeNode("Particle")) {
+				ImGui::DragFloat3("particles", &particles[0].transform.translate.x, 0.01f);
 				ImGui::TreePop();
-			}*/
+			}
 			if (ImGui::TreeNode("UV")) {
 				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
@@ -1966,7 +1988,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
 			commandList->SetPipelineState(graphicsPipelineState.Get());
 
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+			//commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->IASetIndexBuffer(&indexBufferView);
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
