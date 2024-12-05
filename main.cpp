@@ -20,6 +20,7 @@
 #include <fstream>
 #include <sstream>
 #include <wrl.h>
+#include <random>
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma comment(lib,"d3d12.lib")
@@ -108,6 +109,16 @@ struct ModelData {
 struct Particle {
 	Transform transform;
 	Vector3 velocity;
+	Vector4 color;
+	float lifeTime;
+	float currentTime;
+};
+
+struct ParticleForGPU
+{
+	Matrix4x4 WVP;
+	Matrix4x4 World;
+	Vector4 color;
 };
 #pragma endregion
 
@@ -809,6 +820,21 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 	return modelData;
 }
 #pragma endregion
+
+Particle MakeNewParticle(std::mt19937& randomEngine) {
+	std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
+	std::uniform_real_distribution<float> distColor(0.0f, 1.0f);
+	std::uniform_real_distribution<float> distTime(1.0f, 3.0f);
+	Particle particle;
+	particle.transform.scale = { 1.0f,1.0f,1.0f };
+	particle.transform.rotate = { 0.0f,0.0f,0.0f };
+	particle.transform.translate = { distribution(randomEngine),distribution(randomEngine) ,distribution(randomEngine) };
+	particle.velocity = { distribution(randomEngine) ,distribution(randomEngine) ,distribution(randomEngine) };
+	particle.color = { distColor(randomEngine) ,distColor(randomEngine) ,distColor(randomEngine),distColor(randomEngine) };
+	particle.lifeTime = distTime(randomEngine);
+	particle.currentTime = 0;
+	return particle;
+}
 #pragma endregion
 
 struct D3DResourceLeakChecker {
@@ -1171,15 +1197,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	blendDesc.RenderTarget[0].BlendEnable = TRUE;
 	//NormalBlend
-	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-
-	//AddBlend
 	/*blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+*/
+	//AddBlend
+	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-	*/
+	
 	//SubtractBlend
 	/*blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_SUBTRACT;
@@ -1232,15 +1258,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	uint32_t startIndex = kSubdivision * kSubdivision * 6;
 #pragma endregion
 
-	const uint32_t kNumInstance = 10;
+	const uint32_t kNumMaxInstance = 10;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device, sizeof(TransformationMatrix) * kNumInstance);
-	TransformationMatrix* instancingData = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device, sizeof(ParticleForGPU) * kNumMaxInstance);
+	ParticleForGPU* instancingData = nullptr;
 	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
 
-	for (uint32_t index = 0; index < kNumInstance; ++index) {
+	for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
 		instancingData[index].WVP = MakeIdentity4x4();
 		instancingData[index].World = MakeIdentity4x4();
+		instancingData[index].color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 
 #pragma region モデル読み込み
@@ -1294,8 +1321,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	instancingSrvDesc.Buffer.FirstElement = 0;
 	instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	instancingSrvDesc.Buffer.NumElements = kNumInstance;
-	instancingSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
+	instancingSrvDesc.Buffer.NumElements = kNumMaxInstance;
+	instancingSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
 	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
 	D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
 	device->CreateShaderResourceView(instancingResource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
@@ -1323,7 +1350,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region plane読み込み
 	ModelData planeData = LoadObjFile("resources", "plane.obj");
 
-	DirectX::ScratchImage mipImagesPlane = LoadTexture("resources/uvChecker.png");
+	DirectX::ScratchImage mipImagesPlane = LoadTexture("resources/circle.png");
 	const DirectX::TexMetadata& metadataPlane = mipImagesPlane.GetMetadata();
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResourcePlane = CreateTextureResource(device, metadataPlane);
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediatePlane = UploadTextureData(textureResourcePlane, mipImagesPlane, device, commandList);
@@ -1347,12 +1374,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		transforms[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
 	}*/
 
-	Particle particles[kNumInstance];
-	for (uint32_t index = 0; index < kNumInstance; ++index) {
-		particles[index].transform.scale = { 1.0f,1.0f,1.0f };
-		particles[index].transform.rotate = { 0.0f,0.0f,0.0f };
-		particles[index].transform.translate = { index * 0.1f,index * 0.1f,index * 0.1f };
-		particles[index].velocity = { 0.0f,1.0f,0.0f };
+	std::random_device seedGenerator;
+	std::mt19937 randomEngine(seedGenerator());
+
+	Particle particles[kNumMaxInstance];
+	for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
+		particles[index] = MakeNewParticle(randomEngine);
 	}
 
 	const float kDeltaTime = 1.0f / 60.0f;
@@ -1763,7 +1790,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	depthStencilDesc.DepthEnable = true;
 
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 #pragma endregion
@@ -1896,21 +1923,36 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 worldProjectionMatrixPlane = Multiply(worldMatrixPlane, Multiply(viewMatrixPlane, projectionMatrixPlane));
 			*transformationMatrixDataPlane = { worldProjectionMatrixPlane,worldMatrixPlane };
 
-			for (uint32_t index = 0; index < kNumInstance; ++index) {
-				Matrix4x4 WorldMatrix = MakeAffineMatrix(particles[kNumInstance].transform.scale, particles[kNumInstance].transform.rotate, particles[kNumInstance].transform.translate);
-				Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
-				Matrix4x4 WorldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
-				instancingData[index].WVP = WorldViewProjectionMatrix;
-				instancingData[index].World = worldMatrix;
+			uint32_t numInstance = 0;
 
-				particles[index].velocity = {
-					particles[index].velocity.x * kDeltaTime,
-				particles[index].velocity.y * kDeltaTime,
-				particles[index].velocity.z * kDeltaTime
-				};
-				particles[index].transform.translate.x += particles[index].velocity.x;
-				particles[index].transform.translate.y += particles[index].velocity.y;
-				particles[index].transform.translate.z += particles[index].velocity.z;
+			for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
+				if (particles[index].lifeTime <= particles[index].currentTime) {
+					continue;
+				}
+
+				Matrix4x4 WorldMatrix = MakeAffineMatrix(particles[index].transform.scale, particles[index].transform.rotate, particles[index].transform.translate);
+				Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
+				Matrix4x4 worldViewProjectionMatrix = Multiply(WorldMatrix, viewProjectionMatrix);
+
+				particles[index].velocity.x = particles[index].velocity.x;
+				particles[index].velocity.y = particles[index].velocity.y;
+				particles[index].velocity.z = particles[index].velocity.z;
+
+				particles[index].transform.translate.x += particles[index].velocity.x * kDeltaTime;
+				particles[index].transform.translate.y += particles[index].velocity.y * kDeltaTime;
+				particles[index].transform.translate.z += particles[index].velocity.z * kDeltaTime;
+
+				particles[index].currentTime += kDeltaTime;
+
+				instancingData[index].WVP = worldViewProjectionMatrix;
+				instancingData[index].World = WorldMatrix;
+				instancingData[index].color = particles[index].color;
+
+				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifeTime);
+
+				instancingData[numInstance].color.w = alpha;
+
+				++numInstance;
 			}
 
 #pragma region コマンドを積み込み確定させる
@@ -1934,7 +1976,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::TreePop();
 			}
 			if (ImGui::TreeNode("Particle")) {
-				ImGui::DragFloat3("particles", &particles[0].transform.translate.x, 0.01f);
+				ImGui::DragFloat4("particles", &particles[0].color.x, 0.01f);
 				ImGui::TreePop();
 			}
 			if (ImGui::TreeNode("UV")) {
@@ -2022,7 +2064,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(1, instancingSrvHandleGPU);
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUPlane);
 
-			commandList->DrawInstanced(UINT(planeData.vertices.size()), kNumInstance, 0, 0);
+			commandList->DrawInstanced(UINT(planeData.vertices.size()), numInstance, 0, 0);
 
 #pragma region 三角形二枚描画
 			/*commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
