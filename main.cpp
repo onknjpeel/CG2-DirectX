@@ -157,6 +157,8 @@ Transform transformFence{ {1.0f,1.0f,1.0f},{-0.5f,0.0f,0.0f},{0.0f,0.0f,0.0f } }
 
 Transform transformPlane{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 
+bool useBillboard = true;
+
 #pragma endregion
 
 #pragma region 関数群
@@ -1931,6 +1933,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			billboardMatrix.m[3][1] = 0.0f;
 			billboardMatrix.m[3][2] = 0.0f;
 
+			if (!useBillboard) {
+				billboardMatrix = {
+					1,0,0,0,
+					0,1,0,0,
+					0,0,1,0,
+					0,0,0,1
+				};
+			}
+
 			uint32_t numInstance = 0;
 
 			for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
@@ -1940,10 +1951,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				Matrix4x4 scaleMatrix = MakeScaleMatrix(particles[index].transform.scale);
 				Matrix4x4 translateMatrix = MakeScaleMatrix(particles[index].transform.translate);
 
-				Matrix4x4 WorldMatrix = Multiply(scaleMatrix, Multiply(billboardMatrix, translateMatrix));
+				//Matrix4x4 WorldMatrix = Multiply( translateMatrix, Multiply(billboardMatrix,scaleMatrix));
+				Matrix4x4 WorldMatrix = MakeAffineMatrix(particles[index].transform.scale, particles[index].transform.rotate, particles[index].transform.translate);
+				WorldMatrix = Multiply(WorldMatrix, billboardMatrix);
 
 				Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
-				Matrix4x4 worldViewProjectionMatrix = Multiply(WorldMatrix, viewProjectionMatrix);
+				Matrix4x4 WorldViewProjectionMatrix = Multiply(WorldMatrix, viewProjectionMatrix);
 
 				particles[index].velocity.x = particles[index].velocity.x;
 				particles[index].velocity.y = particles[index].velocity.y;
@@ -1955,7 +1968,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 				particles[index].currentTime += kDeltaTime;
 
-				instancingData[index].WVP = worldViewProjectionMatrix;
+				instancingData[index].WVP = WorldViewProjectionMatrix;
 				instancingData[index].World = WorldMatrix;
 				instancingData[index].color = particles[index].color;
 
@@ -1974,30 +1987,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			ImGui::Begin("Window");
-			if (ImGui::TreeNode("model")) {
-				ImGui::DragFloat3("Model.translate", &transform.translate.x, 0.01f);
-				ImGui::DragFloat3("Model.rotate", &transform.rotate.x, 0.01f);
-				ImGui::DragFloat3("Model.scale", &transform.scale.x, 0.01f);
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("fence")) {
-				ImGui::DragFloat3("Fence.translate", &transformFence.translate.x, 0.01f);
-				ImGui::DragFloat3("Fence.rotate", &transformFence.rotate.x, 0.01f);
-				ImGui::DragFloat3("Fence.scale", &transformFence.scale.x, 0.01f);
-				ImGui::TreePop();
-			}
 			if (ImGui::TreeNode("Particle")) {
 				ImGui::DragFloat4("particles", &particles[0].color.x, 0.01f);
 				ImGui::TreePop();
 			}
-			if (ImGui::TreeNode("UV")) {
-				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-				ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
-				ImGui::TreePop();
-			}
-			ImGui::Text("Sprite");
-			ImGui::DragFloat3("Sprite.position", &transformSprite.translate.x, 0.25f);
+			ImGui::Checkbox("useBillboard", &useBillboard);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
