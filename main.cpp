@@ -121,6 +121,13 @@ struct ParticleForGPU
 	Matrix4x4 World;
 	Vector4 color;
 };
+
+struct Emitter {
+	Transform transform;
+	uint32_t count;
+	float frequency;
+	float frequencyTime;
+};
 #pragma endregion
 
 #pragma region 変数群
@@ -160,6 +167,16 @@ Transform transformPlane{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f } };
 bool useBillboard = true;
 
 #pragma endregion
+
+Vector3 operator+(const Vector3& v1, const Vector3& v2) {
+	Vector3 result;
+	result = {
+		v1.x + v2.x,
+		v1.y + v2.y,
+		v1.z + v2.z
+	};
+	return result;
+}
 
 #pragma region 関数群
 #pragma region 行列に関する関数
@@ -824,10 +841,11 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 }
 #pragma endregion
 
-Particle MakeNewParticle(std::mt19937& randomEngine) {
+Particle MakeNewParticle(std::mt19937& randomEngine, const Vector3& translate) {
 	std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
 	std::uniform_real_distribution<float> distColor(0.0f, 1.0f);
 	std::uniform_real_distribution<float> distTime(1.0f, 3.0f);
+	Vector3 randomTranslate{ distribution(randomEngine),distribution(randomEngine) ,distribution(randomEngine) };
 	Particle particle;
 	particle.transform.scale = { 1.0f,1.0f,1.0f };
 	particle.transform.rotate = { 0.0f,0.0f,0.0f };
@@ -836,8 +854,18 @@ Particle MakeNewParticle(std::mt19937& randomEngine) {
 	particle.color = { distColor(randomEngine) ,distColor(randomEngine) ,distColor(randomEngine),distColor(randomEngine) };
 	particle.lifeTime = distTime(randomEngine);
 	particle.currentTime = 0;
+	particle.transform.translate = translate + randomTranslate;
 	return particle;
 }
+
+std::list<Particle> Emit(const Emitter& emitter, std::mt19937& randomEngine) {
+	std::list<Particle> particles;
+	for (uint32_t count = 0; count < emitter.count; ++count) {
+		particles.push_back(MakeNewParticle(randomEngine, emitter.transform.translate));
+	}
+	return particles;
+}
+
 #pragma endregion
 
 struct D3DResourceLeakChecker {
@@ -1261,7 +1289,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	uint32_t startIndex = kSubdivision * kSubdivision * 6;
 #pragma endregion
 
-	const uint32_t kNumMaxInstance = 10;
+	const uint32_t kNumMaxInstance = 100;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device, sizeof(ParticleForGPU) * kNumMaxInstance);
 	ParticleForGPU* instancingData = nullptr;
@@ -1380,12 +1408,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::random_device seedGenerator;
 	std::mt19937 randomEngine(seedGenerator());
 
-	Particle particles[kNumMaxInstance];
-	for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
-		particles[index] = MakeNewParticle(randomEngine);
-	}
+	//Particle particles[kNumMaxInstance];
+	std::list<Particle> particles;
 
 	const float kDeltaTime = 1.0f / 60.0f;
+
+	Emitter emitter{};
+	emitter.count = 3;
+	emitter.frequency = 0.5f;
+	emitter.frequencyTime = 0.0f;
+	emitter.transform.translate = { 0.0f,0.0f,0.0f };
+	emitter.transform.rotate = { 0.0f,0.0f,0.0f };
+	emitter.transform.scale = { 1.0f,1.0f,1.0f };
 
 #pragma region model描画
 
@@ -1944,39 +1978,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			uint32_t numInstance = 0;
 
-			for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
-				if (particles[index].lifeTime <= particles[index].currentTime) {
+			emitter.frequencyTime += kDeltaTime;
+			if (emitter.frequency <= emitter.frequencyTime) {
+				particles.splice(particles.end(), Emit(emitter, randomEngine));
+				emitter.frequencyTime -= emitter.frequency;
+			}
+
+
+			for (std::list<Particle>::iterator particleIterator = particles.begin();
+				particleIterator != particles.end();) {
+				if ((*particleIterator).lifeTime <= (*particleIterator).currentTime) {
+					particleIterator = particles.erase(particleIterator);
 					continue;
 				}
-				Matrix4x4 scaleMatrix = MakeScaleMatrix(particles[index].transform.scale);
-				Matrix4x4 translateMatrix = MakeScaleMatrix(particles[index].transform.translate);
-
-				//Matrix4x4 WorldMatrix = Multiply( translateMatrix, Multiply(billboardMatrix,scaleMatrix));
-				Matrix4x4 WorldMatrix = MakeAffineMatrix(particles[index].transform.scale, particles[index].transform.rotate, particles[index].transform.translate);
+				Matrix4x4 WorldMatrix = MakeAffineMatrix((*particleIterator).transform.scale, (*particleIterator).transform.rotate, (*particleIterator).transform.translate);
 				WorldMatrix = Multiply(WorldMatrix, billboardMatrix);
 
 				Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
 				Matrix4x4 WorldViewProjectionMatrix = Multiply(WorldMatrix, viewProjectionMatrix);
 
-				particles[index].velocity.x = particles[index].velocity.x;
-				particles[index].velocity.y = particles[index].velocity.y;
-				particles[index].velocity.z = particles[index].velocity.z;
+				(*particleIterator).velocity.x = (*particleIterator).velocity.x;
+				(*particleIterator).velocity.y = (*particleIterator).velocity.y;
+				(*particleIterator).velocity.z = (*particleIterator).velocity.z;
 
-				particles[index].transform.translate.x += particles[index].velocity.x * kDeltaTime;
-				particles[index].transform.translate.y += particles[index].velocity.y * kDeltaTime;
-				particles[index].transform.translate.z += particles[index].velocity.z * kDeltaTime;
+				(*particleIterator).transform.translate.x += (*particleIterator).velocity.x * kDeltaTime;
+				(*particleIterator).transform.translate.y += (*particleIterator).velocity.y * kDeltaTime;
+				(*particleIterator).transform.translate.z += (*particleIterator).velocity.z * kDeltaTime;
 
-				particles[index].currentTime += kDeltaTime;
+				(*particleIterator).currentTime += kDeltaTime;
 
-				instancingData[index].WVP = WorldViewProjectionMatrix;
-				instancingData[index].World = WorldMatrix;
-				instancingData[index].color = particles[index].color;
+				if (numInstance < kNumMaxInstance) {
+					instancingData[numInstance].WVP = WorldViewProjectionMatrix;
+					instancingData[numInstance].World = WorldMatrix;
+					instancingData[numInstance].color = (*particleIterator).color;
 
-				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifeTime);
+					float alpha = 1.0f - ((*particleIterator).currentTime / (*particleIterator).lifeTime);
 
-				instancingData[numInstance].color.w = alpha;
+					instancingData[numInstance].color.w = alpha;
 
-				++numInstance;
+					++numInstance;
+				}
+				++particleIterator;
 			}
 
 #pragma region コマンドを積み込み確定させる
@@ -1987,11 +2029,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			ImGui::Begin("Window");
-			if (ImGui::TreeNode("Particle")) {
-				ImGui::DragFloat4("particles", &particles[0].color.x, 0.01f);
-				ImGui::TreePop();
-			}
 			ImGui::Checkbox("useBillboard", &useBillboard);
+			if (ImGui::Button("Add Particle")) {
+				//particles.splice(particles.end(), Emit(emitter, randomEngine));
+			}
+			ImGui::InputFloat("f", &emitter.frequency, 0.0f, 0.0f);
+			ImGui::InputFloat("fTime", &emitter.frequencyTime, 0.0f, 0.0f);
+			ImGui::DragFloat3("EmitterTranslate", &emitter.transform.translate.x, 0.01f, -100.0f, 100.0f);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
