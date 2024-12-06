@@ -15,6 +15,8 @@
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
 #include "D3DResourceLeakChecker.h"
+#include "Sprite.h"
+#include "SpriteCommon.h"
 
 #pragma comment(lib,"dxcompiler.lib")
 
@@ -516,6 +518,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxCommon = new DXCommon();
 	dxCommon->Initialize(winApp);
 
+	SpriteCommon* spriteCommon = new SpriteCommon();
+	spriteCommon->Initialize();
+
 #ifdef _DEBUG
 
 #pragma region DebugLayer
@@ -540,6 +545,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	input = new Input();
 	input->Initialize(winApp);
+
+	Sprite* sprite = new Sprite();
+	sprite->Initialize();
 
 #ifdef _DEBUG
 
@@ -1179,7 +1187,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::string str1{ std::to_string(10) };
 
 #pragma region 解放処理
+	delete sprite;
 	delete input;
+	delete spriteCommon;
 	winApp->Finalize();
 	delete winApp;
 	winApp = nullptr;
