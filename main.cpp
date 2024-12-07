@@ -909,7 +909,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region ウィンドウ生成と表示
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName,
-		L"CG2",
+		L"LE2C_07_オノ_ケンジピエール",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -2030,12 +2030,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			ImGui::Begin("Window");
 			ImGui::Checkbox("useBillboard", &useBillboard);
-			if (ImGui::Button("Add Particle")) {
-				//particles.splice(particles.end(), Emit(emitter, randomEngine));
+			if (ImGui::TreeNode("Emitter")) {
+				ImGui::InputFloat("f", &emitter.frequency, 0.0f, 0.0f);
+				ImGui::InputFloat("fTime", &emitter.frequencyTime, 0.0f, 0.0f);
+				ImGui::DragFloat3("EmitterTranslate", &emitter.transform.translate.x, 0.01f, -100.0f, 100.0f);
+				ImGui::TreePop();
 			}
-			ImGui::InputFloat("f", &emitter.frequency, 0.0f, 0.0f);
-			ImGui::InputFloat("fTime", &emitter.frequencyTime, 0.0f, 0.0f);
-			ImGui::DragFloat3("EmitterTranslate", &emitter.transform.translate.x, 0.01f, -100.0f, 100.0f);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
