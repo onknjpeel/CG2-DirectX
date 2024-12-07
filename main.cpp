@@ -5,7 +5,6 @@
 #include <math.h>
 #include <vector>
 #include "externals/DirectXTex/DirectXTex.h"
-#include "externals/DirectXTex/d3dx12.h"
 #include <fstream>
 #include <sstream>
 #include "Input.h"
@@ -579,7 +578,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #endif
 
-#pragma region RootSignatureを生成
+#pragma region RootSignatureを生成//
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
@@ -1002,7 +1001,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 #pragma endregion
 
-#pragma region PSOを生成する
+#pragma region PSOを生成する//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
 	graphicsPipelineStateDesc.pRootSignature = rootSignature.Get();
 	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;
