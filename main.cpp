@@ -251,9 +251,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	input = new Input();
 	input->Initialize(winApp);
 
-	Sprite* sprite = new Sprite();
+	/*Sprite* sprite = new Sprite();
 	sprite->Initialize(&spriteCommon);
-	sprite->Update();
+*/
+	std::vector<Sprite*> sprites;
+	for (uint32_t i = 0; i < 5; ++i) {
+		Sprite* sprite = new Sprite();
+		sprite->Initialize(&spriteCommon);
+		sprites.push_back(sprite);
+	}
+
 #ifdef _DEBUG
 
 #pragma region エラー・警告時に停止
@@ -289,11 +296,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 #pragma region RootParameter
-	
+
 	D3D12_ROOT_PARAMETER rootParameter[4] = {};
 
 #pragma region DescriptorRange
-	
+
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;
 	descriptorRange[0].NumDescriptors = 1;
@@ -311,7 +318,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameter[1].Descriptor.ShaderRegister = 0;
 
 #pragma region DescriptorTable
-	
+
 	rootParameter[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameter[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameter[2].DescriptorTable.pDescriptorRanges = descriptorRange;
@@ -343,46 +350,46 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.pStaticSamplers = staticSamplers;
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 #pragma endregion
-/*
-	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
-	Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
-	hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
-	if (FAILED(hr)) {
-		Logger::Log(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
-		assert(false);
-	}
+	/*
+		Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
+		Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
+		hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+		if (FAILED(hr)) {
+			Logger::Log(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
+			assert(false);
+		}
 
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
-	hr = dxCommon->GetDevice()->CreateRootSignature(0,
-		signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(),
-		IID_PPV_ARGS(&rootSignature)
-	);
-	assert(SUCCEEDED(hr));
-	*/
+		Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
+		hr = dxCommon->GetDevice()->CreateRootSignature(0,
+			signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(),
+			IID_PPV_ARGS(&rootSignature)
+		);
+		assert(SUCCEEDED(hr));
+		*/
 #pragma endregion
 
 #pragma region InputLayoutの設定(拡張)
-	/*
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
-	inputElementDescs[0].SemanticName = "POSITION";
-	inputElementDescs[0].SemanticIndex = 0;
-	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		/*
+		D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
+		inputElementDescs[0].SemanticName = "POSITION";
+		inputElementDescs[0].SemanticIndex = 0;
+		inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
-	inputElementDescs[1].SemanticName = "TEXCOORD";
-	inputElementDescs[1].SemanticIndex = 0;
-	inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-	inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		inputElementDescs[1].SemanticName = "TEXCOORD";
+		inputElementDescs[1].SemanticIndex = 0;
+		inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+		inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
-	inputElementDescs[2].SemanticName = "NORMAL";
-	inputElementDescs[2].SemanticIndex = 0;
-	inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
-	inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		inputElementDescs[2].SemanticName = "NORMAL";
+		inputElementDescs[2].SemanticIndex = 0;
+		inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
-	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
-	inputLayoutDesc.pInputElementDescs = inputElementDescs;
-	inputLayoutDesc.NumElements = _countof(inputElementDescs);
-*/
+		D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
+		inputLayoutDesc.pInputElementDescs = inputElementDescs;
+		inputLayoutDesc.NumElements = _countof(inputElementDescs);
+	*/
 #pragma endregion
 
 #pragma region BlendStateの設定
@@ -486,57 +493,57 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る
-	/*Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
+/*Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
 
-	TransformationMatrix* transformationMatrixData = nullptr;
+TransformationMatrix* transformationMatrixData = nullptr;
 
-	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
+transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
 
-	transformationMatrixData->WVP = MakeIdentity4x4();*/
+transformationMatrixData->WVP = MakeIdentity4x4();*/
 #pragma endregion
 
 #pragma region VertexBufferViewを作成
-	/*D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+/*D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 
-	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
 
-	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
+vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
 
-	vertexBufferView.StrideInBytes = sizeof(VertexData);*/
+vertexBufferView.StrideInBytes = sizeof(VertexData);*/
 #pragma endregion
 
 #pragma region Resourceにデータを書き込む(頂点データの更新)
-	/*VertexData* vertexData = nullptr;
+/*VertexData* vertexData = nullptr;
 
-	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
-	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
+std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
 */
 #pragma endregion
 
 #pragma region IndexResource
-	/*Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = dxCommon->CreateBufferResource(sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
+/*Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = dxCommon->CreateBufferResource(sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
 
-	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
+D3D12_INDEX_BUFFER_VIEW indexBufferView{};
 
-	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
+indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
 
-	indexBufferView.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6;
+indexBufferView.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6;
 
-	indexBufferView.Format = DXGI_FORMAT_R32_UINT;*/
+indexBufferView.Format = DXGI_FORMAT_R32_UINT;*/
 #pragma endregion
 
 #pragma region IndexResourceに書き込み
-	/*uint32_t* indexData = nullptr;
-	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
-	for (uint32_t i = 0; i < kSubdivision; ++i) {
-		for (uint32_t j = 0; j < kSubdivision; ++j) {
-			uint32_t start = (i * kSubdivision + j) * 6;
-			uint32_t a = i * (kSubdivision + 1) + j;
-			indexData[start] = a; indexData[start + 1] = a + kSubdivision + 1; indexData[start + 2] = a + 1;
-			indexData[start + 3] = a + kSubdivision + 1; indexData[start + 4] = a + kSubdivision + 2; indexData[start + 5] = a + 1;
-		}
+/*uint32_t* indexData = nullptr;
+indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+for (uint32_t i = 0; i < kSubdivision; ++i) {
+	for (uint32_t j = 0; j < kSubdivision; ++j) {
+		uint32_t start = (i * kSubdivision + j) * 6;
+		uint32_t a = i * (kSubdivision + 1) + j;
+		indexData[start] = a; indexData[start + 1] = a + kSubdivision + 1; indexData[start + 2] = a + 1;
+		indexData[start + 3] = a + kSubdivision + 1; indexData[start + 4] = a + kSubdivision + 2; indexData[start + 5] = a + 1;
 	}
+}
 */
 #pragma endregion
 
@@ -746,7 +753,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 */
 #pragma endregion
 
-	//文字出力
+//文字出力
 	OutputDebugStringA("Hello,DirectX!\n");
 
 	MSG msg{};
@@ -778,37 +785,126 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
 			Matrix4x4 worldProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			*transformationMatrixData = { worldProjectionMatrix,worldMatrix };
+*//*
+			Vector2 position = sprite->GetPosition();
+
+			//position.x += 0.1f;
+			//position.y += 0.1f;
+
+			sprite->SetPosition(position);
+
+			float rotation = sprite->GetRotation();
+
+			//rotation += 0.01f;
+
+			sprite->SetRotation(rotation);
+
+			Vector4 color = sprite->GetColor();
+			color.x += 0.01f;
+			if (color.x > 1.0f) {
+				color.x -= 1.0f;
+			}
+			sprite->SetColor(color);
+
+			Vector2 size = sprite->GetSize();
+			size.x += 0.1f;
+			size.y += 0.1f;
+			sprite->SetSize(size);
+
+			//sprite->Update();
+
 */
+			for (size_t i = 0; i < sprites.size(); ++i) {
+				Sprite* sprite = sprites[i];
+
+				Vector2 position = sprite->GetPosition();
+
+				float rotation = sprite->GetRotation();
+
+				Vector4 color = sprite->GetColor();
+
+				Vector2 size = sprite->GetSize();
+
+				size.x = 320.0f;
+				size.y = 160.0f;
+
+				if (i == 0) {
+					position.x = 0.0f;
+					position.y = 0.0f;
+
+					//rotation += 0.01f;
+
+				}
+				else if (i == 1) {
+					position.x = 640.0f;
+					position.y = 0.0f;
+
+					//rotation += 0.01f;
+				}
+				else if (i == 2) {
+					position.x = 320.0f;
+					position.y = 180.0f;
+
+					//rotation += 0.01f;
+				}
+				else if (i == 3) {
+					position.x = 0.0f;
+					position.y = 320.0f;
+
+					//rotation += 0.01f;
+				}
+				else if (i == 4) {
+					position.x = 640.0f;
+					position.y = 320.0f;
+
+					//rotation += 0.01f;
+				}
+
+				sprite->SetPosition(position);
+
+				sprite->SetRotation(rotation);
+
+				color.x += 0.01f;
+				if (color.x > 1.0f) {
+					color.x -= 1.0f;
+				}
+				sprite->SetColor(color);
+
+				sprite->SetSize(size);
+
+				sprite->Update();
+			}
+
 #pragma endregion
 
 #pragma region WVPMatrixを作って書き込む//sprite
-/*
-	Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
-	Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
-	Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
-	Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
-	*transformationMatrixDataSprite = { worldViewProjectionMatrixSprite, worldMatrixSprite };
-*/
+			/*
+				Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+				Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
+				Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+				Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+				*transformationMatrixDataSprite = { worldViewProjectionMatrixSprite, worldMatrixSprite };
+			*/
 #pragma endregion
 
 #pragma region Transformを使って書き込む//三角形二枚
-/*
-Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
-Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-Matrix4x4 viewMatrixTriangle = Inverse(cameraMatrixTriangle);
-Matrix4x4 projectionMatrixTriangle = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
-Matrix4x4 worldProjectionMatrixTriangle = Multiply(worldMatrixTriangle, Multiply(viewMatrixTriangle, projectionMatrixTriangle));
-*transformationMatrixDataTriangle = { worldProjectionMatrixTriangle ,worldMatrixTriangle };
-*/
+			/*
+			Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
+			Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrixTriangle = Inverse(cameraMatrixTriangle);
+			Matrix4x4 projectionMatrixTriangle = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
+			Matrix4x4 worldProjectionMatrixTriangle = Multiply(worldMatrixTriangle, Multiply(viewMatrixTriangle, projectionMatrixTriangle));
+			*transformationMatrixDataTriangle = { worldProjectionMatrixTriangle ,worldMatrixTriangle };
+			*/
 #pragma endregion
 
 #pragma region UVTransform行列
-/*
-Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
-uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
-uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
-materialDataSprite->uvTransform = uvTransformMatrix;
-*/
+			/*
+			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
+			materialDataSprite->uvTransform = uvTransformMatrix;
+			*/
 #pragma endregion
 
 #pragma region コマンドを積み込み確定させる
@@ -849,7 +945,10 @@ materialDataSprite->uvTransform = uvTransformMatrix;
 			dxCommon->PreDraw();
 
 			spriteCommon.DrawSpriteCommon();
-			sprite->Draw();
+
+			for (Sprite* sprite : sprites) {
+				sprite->Draw();
+			}
 
 			/*
 			dxCommon->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
@@ -916,7 +1015,9 @@ dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGP
 	std::string str1{ std::to_string(10) };
 
 #pragma region 解放処理
-	delete sprite;
+	for (Sprite* sprite : sprites) {
+		delete sprite;
+	}
 	delete input;
 	winApp->Finalize();
 	delete winApp;
