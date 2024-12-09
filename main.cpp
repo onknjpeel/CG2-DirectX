@@ -517,8 +517,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxCommon = new DXCommon();
 	dxCommon->Initialize(winApp);
 
-	SpriteCommon* spriteCommon = new SpriteCommon();
-	spriteCommon->Initialize();
+	SpriteCommon spriteCommon;
+	spriteCommon.Initialize(dxCommon);
 
 #ifdef _DEBUG
 
@@ -1124,14 +1124,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region コマンドを積む
 			dxCommon->PreDraw();
 
+			spriteCommon.DrawSpriteCommon();
 
+			/*
 			dxCommon->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
 			dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
+			*/
 
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferView);
 			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferView);
 
-			dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			//dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 #pragma region CBVを設定する
 			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
@@ -1146,6 +1149,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->GetCommandList()->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
 #pragma region 三角形二枚描画
+			
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
 			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferViewTriangle);
 			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceTriangle->GetGPUVirtualAddress());
@@ -1155,6 +1159,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Sprite描画
+
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
 			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferViewSprite);
 			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
@@ -1188,7 +1193,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region 解放処理
 	delete sprite;
 	delete input;
-	delete spriteCommon;
 	winApp->Finalize();
 	delete winApp;
 	winApp = nullptr;

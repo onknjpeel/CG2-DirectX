@@ -8,9 +8,15 @@ void SpriteCommon::Initialize(DXCommon* dxCommon)
 	CreateGraphicsPipelineState();
 }
 
+void SpriteCommon::DrawSpriteCommon()
+{
+	dxCommon_->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
+	dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
+	dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
 void SpriteCommon::CreateRootSignature()
 {
-	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
