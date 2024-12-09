@@ -1,6 +1,7 @@
 #pragma once
 #include "externals/DirectXTex/d3dx12.h"
 #include "DXCommon.h"
+
 class SpriteCommon
 {
 public:

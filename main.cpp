@@ -1,8 +1,4 @@
-#define _USE_MATH_DEFINES
-
 #include <dxgidebug.h>
-#include <cmath>
-#include <math.h>
 #include <vector>
 #include "externals/DirectXTex/DirectXTex.h"
 #include <fstream>
@@ -20,53 +16,6 @@
 #pragma comment(lib,"dxcompiler.lib")
 
 #pragma region 構造体群
-struct Vector2 {
-	float x;
-	float y;
-};
-
-struct Vector3 {
-	float x;
-	float y;
-	float z;
-};
-
-struct Vector4 {
-	float x;
-	float y;
-	float z;
-	float w;
-};
-
-struct Matrix3x3 {
-	float m[3][3];
-};
-
-struct Matrix4x4 {
-	float m[4][4];
-};
-
-struct Transform {
-	Vector3 scale;
-	Vector3 rotate;
-	Vector3 translate;
-};
-
-#pragma region Material ver.06_01
-struct Material {
-	Vector4 color;
-	int32_t enableLighting;
-	float padding[3];
-	Matrix4x4 uvTransform;
-};
-#pragma endregion
-
-#pragma region TransformMatrix:拡張
-struct TransformationMatrix {
-	Matrix4x4 WVP;
-	Matrix4x4 World;
-};
-#pragma endregion
 
 #pragma region 平行光源
 struct DirectionalLight {
@@ -79,14 +28,6 @@ struct DirectionalLight {
 #pragma region マテリアルデータ
 struct MaterialData {
 	std::string textureFilePath;
-};
-#pragma endregion
-
-#pragma region 頂点データの拡張(Ver.05_03)
-struct VertexData {
-	Vector4 position;
-	Vector2 texcoord;
-	Vector3 normal;
 };
 #pragma endregion
 
@@ -129,241 +70,6 @@ Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} 
 
 #pragma region 関数群
 #pragma region 行列に関する関数
-#pragma region 単位行列
-Matrix4x4 MakeIdentity4x4() {
-	Matrix4x4 result = {
-		1,0,0,0,
-		0,1,0,0,
-		0,0,1,0,
-		0,0,0,1
-	};
-	return result;
-}
-#pragma endregion
-
-#pragma region 4x4Matrix同士の乗算
-Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
-	Matrix4x4 result = {};
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < 4; j++) {
-			for (int k = 0; k < 4; k++) {
-				result.m[i][j] += m1.m[i][k] * m2.m[k][j];
-			}
-		}
-	}
-	return result;
-}
-#pragma endregion
-
-#pragma region 拡縮行列の作成
-Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
-	Matrix4x4 result;
-	result = {
-		scale.x,0.0f,0.0f,0.0f,
-		0.0f,scale.y,0.0f,0.0f,
-		0.0f,0.0f,scale.z,0.0f,
-		0.0f,0.0f,0.0f,1.0f
-	};
-	return result;
-}
-#pragma endregion
-
-#pragma region 平行移動行列の作成
-Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
-	Matrix4x4 result;
-	result = {
-		1.0f,0.0f,0.0f,0.0f,
-		0.0f,1.0f,0.0f,0.0f,
-		0.0f,0.0f,1.0f,0.0f,
-		translate.x,translate.y,translate.z,1.0f
-	};
-	return result;
-}
-#pragma endregion
-
-#pragma region 回転行列の作成
-Matrix4x4 MakeRotateXMatrix(const float& rotate) {
-	Matrix4x4 rotateX;
-	rotateX = {
-	1,0,0,0,
-		0,std::cos(rotate),std::sin(rotate),0,
-		0,-std::sin(rotate),std::cos(rotate),0,
-		0,0,0,1
-	};
-	return rotateX;
-}
-Matrix4x4 MakeRotateYMatrix(const float& rotate) {
-	Matrix4x4 rotateY;
-	rotateY = {
-	std::cos(rotate),0,-std::sin(rotate),0,
-		0,1,0,0,
-		std::sin(rotate),0,std::cos(rotate),
-		0,0,0,0,1
-	};
-	return rotateY;
-}
-Matrix4x4 MakeRotateZMatrix(const float& rotate) {
-	Matrix4x4 rotateZ;
-	rotateZ = {
-	std::cos(rotate),std::sin(rotate),0,0,
-		-std::sin(rotate),std::cos(rotate),0,0,
-		0,0,1,0,
-		0,0,0,1
-	};
-	return rotateZ;
-}
-Matrix4x4 MakeRotateMatrix(const Vector3& rotate) {
-	Matrix4x4 rotateX = MakeRotateXMatrix(rotate.x);
-
-	Matrix4x4 rotateY = MakeRotateYMatrix(rotate.y);
-
-	Matrix4x4 rotateZ = MakeRotateZMatrix(rotate.z);
-
-	Matrix4x4 result = Multiply(rotateX, Multiply(rotateY, rotateZ));
-	return result;
-}
-#pragma endregion
-
-#pragma region アフィン行列の作成
-Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
-	Matrix4x4 result;
-	Matrix4x4 rotateM = MakeRotateMatrix(rotate);
-	result = {
-		scale.x * rotateM.m[0][0],scale.x * rotateM.m[0][1],scale.x * rotateM.m[0][2],0,
-		scale.y * rotateM.m[1][0],scale.y * rotateM.m[1][1],scale.y * rotateM.m[1][2],0,
-		scale.z * rotateM.m[2][0],scale.z * rotateM.m[2][1],scale.z * rotateM.m[2][2],0,
-		translate.x,translate.y,translate.z,1
-	};
-	return result;
-}
-#pragma endregion
-
-#pragma region 逆行列の作成
-Matrix4x4 Inverse(const Matrix4x4& m) {
-	float determinant =
-		+m.m[0][0] * m.m[1][1] * m.m[2][2] * m.m[3][3]
-		+ m.m[0][0] * m.m[1][2] * m.m[2][3] * m.m[3][1]
-		+ m.m[0][0] * m.m[1][3] * m.m[2][1] * m.m[3][2]
-
-		- m.m[0][0] * m.m[1][3] * m.m[2][2] * m.m[3][1]
-		- m.m[0][0] * m.m[1][2] * m.m[2][1] * m.m[3][3]
-		- m.m[0][0] * m.m[1][1] * m.m[2][3] * m.m[3][2]
-
-		- m.m[0][1] * m.m[1][0] * m.m[2][2] * m.m[3][3]
-		- m.m[0][2] * m.m[1][0] * m.m[2][3] * m.m[3][1]
-		- m.m[0][3] * m.m[1][0] * m.m[2][1] * m.m[3][2]
-
-		+ m.m[0][3] * m.m[1][0] * m.m[2][2] * m.m[3][1]
-		+ m.m[0][2] * m.m[1][0] * m.m[2][1] * m.m[3][3]
-		+ m.m[0][1] * m.m[1][0] * m.m[2][3] * m.m[3][2]
-
-		+ m.m[0][1] * m.m[1][2] * m.m[2][0] * m.m[3][3]
-		+ m.m[0][2] * m.m[1][3] * m.m[2][0] * m.m[3][1]
-		+ m.m[0][3] * m.m[1][1] * m.m[2][0] * m.m[3][2]
-
-		- m.m[0][3] * m.m[1][2] * m.m[2][0] * m.m[3][1]
-		- m.m[0][2] * m.m[1][1] * m.m[2][0] * m.m[3][3]
-		- m.m[0][1] * m.m[1][3] * m.m[2][0] * m.m[3][2]
-
-		- m.m[0][1] * m.m[1][2] * m.m[2][3] * m.m[3][0]
-		- m.m[0][2] * m.m[1][3] * m.m[2][1] * m.m[3][0]
-		- m.m[0][3] * m.m[1][1] * m.m[2][2] * m.m[3][0]
-
-		+ m.m[0][3] * m.m[1][2] * m.m[2][1] * m.m[3][0]
-		+ m.m[0][2] * m.m[1][1] * m.m[2][3] * m.m[3][0]
-		+ m.m[0][1] * m.m[1][3] * m.m[2][2] * m.m[3][0];
-
-	Matrix4x4 result = {};
-	float recpDeterminant = 1.0f / determinant;
-	result.m[0][0] = (m.m[1][1] * m.m[2][2] * m.m[3][3] + m.m[1][2] * m.m[2][3] * m.m[3][1] +
-		m.m[1][3] * m.m[2][1] * m.m[3][2] - m.m[1][3] * m.m[2][2] * m.m[3][1] -
-		m.m[1][2] * m.m[2][1] * m.m[3][3] - m.m[1][1] * m.m[2][3] * m.m[3][2]) * recpDeterminant;
-	result.m[0][1] = (-m.m[0][1] * m.m[2][2] * m.m[3][3] - m.m[0][2] * m.m[2][3] * m.m[3][1] -
-		m.m[0][3] * m.m[2][1] * m.m[3][2] + m.m[0][3] * m.m[2][2] * m.m[3][1] +
-		m.m[0][2] * m.m[2][1] * m.m[3][3] + m.m[0][1] * m.m[2][3] * m.m[3][2]) * recpDeterminant;
-	result.m[0][2] = (m.m[0][1] * m.m[1][2] * m.m[3][3] + m.m[0][2] * m.m[1][3] * m.m[3][1] +
-		m.m[0][3] * m.m[1][1] * m.m[3][2] - m.m[0][3] * m.m[1][2] * m.m[3][1] -
-		m.m[0][2] * m.m[1][1] * m.m[3][3] - m.m[0][1] * m.m[1][3] * m.m[3][2]) * recpDeterminant;
-	result.m[0][3] = (-m.m[0][1] * m.m[1][2] * m.m[2][3] - m.m[0][2] * m.m[1][3] * m.m[2][1] -
-		m.m[0][3] * m.m[1][1] * m.m[2][2] + m.m[0][3] * m.m[1][2] * m.m[2][1] +
-		m.m[0][2] * m.m[1][1] * m.m[2][3] + m.m[0][1] * m.m[1][3] * m.m[2][2]) * recpDeterminant;
-
-	result.m[1][0] = (-m.m[1][0] * m.m[2][2] * m.m[3][3] - m.m[1][2] * m.m[2][3] * m.m[3][0] -
-		m.m[1][3] * m.m[2][0] * m.m[3][2] + m.m[1][3] * m.m[2][2] * m.m[3][0] +
-		m.m[1][2] * m.m[2][0] * m.m[3][3] + m.m[1][0] * m.m[2][3] * m.m[3][2]) * recpDeterminant;
-	result.m[1][1] = (m.m[0][0] * m.m[2][2] * m.m[3][3] + m.m[0][2] * m.m[2][3] * m.m[3][0] +
-		m.m[0][3] * m.m[2][0] * m.m[3][2] - m.m[0][3] * m.m[2][2] * m.m[3][0] -
-		m.m[0][2] * m.m[2][0] * m.m[3][3] - m.m[0][0] * m.m[2][3] * m.m[3][2]) * recpDeterminant;
-	result.m[1][2] = (-m.m[0][0] * m.m[1][2] * m.m[3][3] - m.m[0][2] * m.m[1][3] * m.m[3][0] -
-		m.m[0][3] * m.m[1][0] * m.m[3][2] + m.m[0][3] * m.m[1][2] * m.m[3][0] +
-		m.m[0][2] * m.m[1][0] * m.m[3][3] + m.m[0][0] * m.m[1][3] * m.m[3][2]) * recpDeterminant;
-	result.m[1][3] = (m.m[0][0] * m.m[1][2] * m.m[2][3] + m.m[0][2] * m.m[1][3] * m.m[2][0] +
-		m.m[0][3] * m.m[1][0] * m.m[2][2] - m.m[0][3] * m.m[1][2] * m.m[2][0] -
-		m.m[0][2] * m.m[1][0] * m.m[2][3] - m.m[0][0] * m.m[1][3] * m.m[2][2]) * recpDeterminant;
-
-	result.m[2][0] = (m.m[1][0] * m.m[2][1] * m.m[3][3] + m.m[1][1] * m.m[2][3] * m.m[3][0] +
-		m.m[1][3] * m.m[2][0] * m.m[3][1] - m.m[1][3] * m.m[2][1] * m.m[3][0] -
-		m.m[1][1] * m.m[2][0] * m.m[3][3] - m.m[1][0] * m.m[2][3] * m.m[3][1]) * recpDeterminant;
-	result.m[2][1] = (-m.m[0][0] * m.m[2][1] * m.m[3][3] - m.m[0][1] * m.m[2][3] * m.m[3][0] -
-		m.m[0][3] * m.m[2][0] * m.m[3][1] + m.m[0][3] * m.m[2][1] * m.m[3][0] +
-		m.m[0][1] * m.m[2][0] * m.m[3][3] + m.m[0][0] * m.m[2][3] * m.m[3][1]) * recpDeterminant;
-	result.m[2][2] = (m.m[0][0] * m.m[1][1] * m.m[3][3] + m.m[0][1] * m.m[1][3] * m.m[3][0] +
-		m.m[0][3] * m.m[1][0] * m.m[3][1] - m.m[0][3] * m.m[1][1] * m.m[3][0] -
-		m.m[0][1] * m.m[1][0] * m.m[3][3] - m.m[0][0] * m.m[1][3] * m.m[3][1]) * recpDeterminant;
-	result.m[2][3] = (-m.m[0][0] * m.m[1][1] * m.m[2][3] - m.m[0][1] * m.m[1][3] * m.m[2][0] -
-		m.m[0][3] * m.m[1][0] * m.m[2][1] + m.m[0][3] * m.m[1][1] * m.m[2][0] +
-		m.m[0][1] * m.m[1][0] * m.m[2][3] + m.m[0][0] * m.m[1][3] * m.m[2][1]) * recpDeterminant;
-
-	result.m[3][0] = (-m.m[1][0] * m.m[2][1] * m.m[3][2] - m.m[1][1] * m.m[2][2] * m.m[3][0] -
-		m.m[1][2] * m.m[2][0] * m.m[3][1] + m.m[1][2] * m.m[2][1] * m.m[3][0] +
-		m.m[1][1] * m.m[2][0] * m.m[3][2] + m.m[1][0] * m.m[2][2] * m.m[3][1]) * recpDeterminant;
-	result.m[3][1] = (m.m[0][0] * m.m[2][1] * m.m[3][2] + m.m[0][1] * m.m[2][2] * m.m[3][0] +
-		m.m[0][2] * m.m[2][0] * m.m[3][1] - m.m[0][2] * m.m[2][1] * m.m[3][0] -
-		m.m[0][1] * m.m[2][0] * m.m[3][2] - m.m[0][0] * m.m[2][2] * m.m[3][1]) * recpDeterminant;
-	result.m[3][2] = (-m.m[0][0] * m.m[1][1] * m.m[3][2] - m.m[0][1] * m.m[1][2] * m.m[3][0] -
-		m.m[0][2] * m.m[1][0] * m.m[3][1] + m.m[0][2] * m.m[1][1] * m.m[3][0] +
-		m.m[0][1] * m.m[1][0] * m.m[3][2] + m.m[0][0] * m.m[1][2] * m.m[3][1]) * recpDeterminant;
-	result.m[3][3] = (m.m[0][0] * m.m[1][1] * m.m[2][2] + m.m[0][1] * m.m[1][2] * m.m[2][0] +
-		m.m[0][2] * m.m[1][0] * m.m[2][1] - m.m[0][2] * m.m[1][1] * m.m[2][0] -
-		m.m[0][1] * m.m[1][0] * m.m[2][2] - m.m[0][0] * m.m[1][2] * m.m[2][1]) * recpDeterminant;
-
-	return result;
-}
-#pragma endregion
-
-#pragma region コタンジェント
-float cot(float x) {
-	float cot;
-	cot = 1 / std::tan(x);
-	return cot;
-}
-#pragma endregion
-
-#pragma region 透視投影行列
-Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
-	Matrix4x4 result;
-	result = {
-		(1 / aspectRatio) * cot(fovY / 2),0,0,0,
-		0,cot(fovY / 2),0,0,
-		0,0,farClip / (farClip - nearClip),1,
-		0,0,(-nearClip * farClip) / (farClip - nearClip),0
-	};
-	return result;
-}
-#pragma endregion
-
-#pragma region 平行投影行列
-Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
-	Matrix4x4 result;
-	result = {
-		2 / (right - left),0,0,0,
-		0,2 / (top - bottom),0,0,
-		0,0,1 / (farClip - nearClip),0,
-		(left + right) / (left - right),(top + bottom) / (bottom - top),nearClip / (nearClip - farClip),1
-	};
-	return result;
-}
-#pragma endregion
 
 #pragma region 長さ
 float Length(const Vector3& v) {
@@ -546,8 +252,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	input->Initialize(winApp);
 
 	Sprite* sprite = new Sprite();
-	sprite->Initialize();
-
+	sprite->Initialize(&spriteCommon);
+	sprite->Update();
 #ifdef _DEBUG
 
 #pragma region エラー・警告時に停止
@@ -583,14 +289,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 #pragma region RootParameter
+	
 	D3D12_ROOT_PARAMETER rootParameter[4] = {};
 
 #pragma region DescriptorRange
+	
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;
 	descriptorRange[0].NumDescriptors = 1;
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
 #pragma endregion
 
 	rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -602,10 +311,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameter[1].Descriptor.ShaderRegister = 0;
 
 #pragma region DescriptorTable
+	
 	rootParameter[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameter[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameter[2].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameter[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+
 #pragma endregion
 
 	rootParameter[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -614,6 +325,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	descriptionRootSignature.pParameters = rootParameter;
 	descriptionRootSignature.NumParameters = _countof(rootParameter);
+
 #pragma endregion
 
 #pragma region Samplerの設定
@@ -631,7 +343,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.pStaticSamplers = staticSamplers;
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 #pragma endregion
-
+/*
 	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
 	Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
 	hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
@@ -646,9 +358,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		IID_PPV_ARGS(&rootSignature)
 	);
 	assert(SUCCEEDED(hr));
+	*/
 #pragma endregion
 
 #pragma region InputLayoutの設定(拡張)
+	/*
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
 	inputElementDescs[0].SemanticIndex = 0;
@@ -668,6 +382,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
+*/
 #pragma endregion
 
 #pragma region BlendStateの設定
@@ -754,11 +469,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region VertexResourceを生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = dxCommon->CreateBufferResource(sizeof(VertexData) * modelData.vertices.size());
+	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = dxCommon->CreateBufferResource(sizeof(VertexData) * modelData.vertices.size());
 #pragma endregion
 
 #pragma region Material用のResourceを作る
-	Microsoft::WRL::ComPtr <ID3D12Resource> materialResource = dxCommon->CreateBufferResource(sizeof(Material));
+	/*Microsoft::WRL::ComPtr <ID3D12Resource> materialResource = dxCommon->CreateBufferResource(sizeof(Material));
 
 	Material* materialData = nullptr;
 
@@ -767,40 +482,40 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialData->enableLighting = true;
 	materialData->uvTransform = MakeIdentity4x4();
-
+*/
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
+	/*Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
 
 	TransformationMatrix* transformationMatrixData = nullptr;
 
 	transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
 
-	transformationMatrixData->WVP = MakeIdentity4x4();
+	transformationMatrixData->WVP = MakeIdentity4x4();*/
 #pragma endregion
 
 #pragma region VertexBufferViewを作成
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+	/*D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 
 	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
 
 	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
 
-	vertexBufferView.StrideInBytes = sizeof(VertexData);
+	vertexBufferView.StrideInBytes = sizeof(VertexData);*/
 #pragma endregion
 
 #pragma region Resourceにデータを書き込む(頂点データの更新)
-	VertexData* vertexData = nullptr;
+	/*VertexData* vertexData = nullptr;
 
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
 	std::memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData) * modelData.vertices.size());
-
+*/
 #pragma endregion
 
 #pragma region IndexResource
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = dxCommon->CreateBufferResource(sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
+	/*Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = dxCommon->CreateBufferResource(sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
 
 	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
 
@@ -808,11 +523,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	indexBufferView.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6;
 
-	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT;*/
 #pragma endregion
 
 #pragma region IndexResourceに書き込み
-	uint32_t* indexData = nullptr;
+	/*uint32_t* indexData = nullptr;
 	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
 	for (uint32_t i = 0; i < kSubdivision; ++i) {
 		for (uint32_t j = 0; j < kSubdivision; ++j) {
@@ -822,7 +537,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			indexData[start + 3] = a + kSubdivision + 1; indexData[start + 4] = a + kSubdivision + 2; indexData[start + 5] = a + 1;
 		}
 	}
-
+*/
 #pragma endregion
 
 #pragma region 三角形二枚用のVertexResource
@@ -1002,6 +717,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region PSOを生成する//
+	/*
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
 	graphicsPipelineStateDesc.pRootSignature = rootSignature.Get();
 	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;
@@ -1027,7 +743,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = dxCommon->GetDevice()->CreateGraphicsPipelineState(&graphicsPipelineStateDesc,
 		IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr));
-
+*/
 #pragma endregion
 
 	//文字出力
@@ -1047,7 +763,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				OutputDebugStringA("Hit 0\n");
 			}
 
-		
+
 #pragma region フレームが始まる旨を告げる
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
@@ -1055,36 +771,44 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Transformを使ってCBufferを更新する
+			/*
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
 			Matrix4x4 worldProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			*transformationMatrixData = { worldProjectionMatrix,worldMatrix };
+*/
 #pragma endregion
 
 #pragma region WVPMatrixを作って書き込む//sprite
-			Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
-			Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
-			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
-			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
-			*transformationMatrixDataSprite = { worldViewProjectionMatrixSprite, worldMatrixSprite };
+/*
+	Matrix4x4 worldMatrixSprite = MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+	Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
+	Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0.0f, 100.0f);
+	Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+	*transformationMatrixDataSprite = { worldViewProjectionMatrixSprite, worldMatrixSprite };
+*/
 #pragma endregion
 
 #pragma region Transformを使って書き込む//三角形二枚
-			Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
-			Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-			Matrix4x4 viewMatrixTriangle = Inverse(cameraMatrixTriangle);
-			Matrix4x4 projectionMatrixTriangle = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
-			Matrix4x4 worldProjectionMatrixTriangle = Multiply(worldMatrixTriangle, Multiply(viewMatrixTriangle, projectionMatrixTriangle));
-			*transformationMatrixDataTriangle = { worldProjectionMatrixTriangle ,worldMatrixTriangle };
+/*
+Matrix4x4 worldMatrixTriangle = MakeAffineMatrix(transformTriangle.scale, transformTriangle.rotate, transformTriangle.translate);
+Matrix4x4 cameraMatrixTriangle = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+Matrix4x4 viewMatrixTriangle = Inverse(cameraMatrixTriangle);
+Matrix4x4 projectionMatrixTriangle = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
+Matrix4x4 worldProjectionMatrixTriangle = Multiply(worldMatrixTriangle, Multiply(viewMatrixTriangle, projectionMatrixTriangle));
+*transformationMatrixDataTriangle = { worldProjectionMatrixTriangle ,worldMatrixTriangle };
+*/
 #pragma endregion
 
 #pragma region UVTransform行列
-			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
-			uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
-			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
-			materialDataSprite->uvTransform = uvTransformMatrix;
+/*
+Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransformSprite.rotate.z));
+uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
+materialDataSprite->uvTransform = uvTransformMatrix;
+*/
 #pragma endregion
 
 #pragma region コマンドを積み込み確定させる
@@ -1125,48 +849,49 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->PreDraw();
 
 			spriteCommon.DrawSpriteCommon();
+			sprite->Draw();
 
 			/*
 			dxCommon->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
 			dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
-			*/
 
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferView);
 			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferView);
 
-			//dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			*/
 
 #pragma region CBVを設定する
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			//dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			//dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
+			//dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 #pragma endregion
 
 #pragma region DescriptorTableを設定する
-			dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+			//dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 #pragma endregion
 
-			dxCommon->GetCommandList()->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+			//dxCommon->GetCommandList()->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
 #pragma region 三角形二枚描画
-			
+			/*
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
 			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferViewTriangle);
 			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceTriangle->GetGPUVirtualAddress());
 			dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			//dxCommon->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
-
+*/
 #pragma endregion
 
 #pragma region Sprite描画
 
-			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-			dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferViewSprite);
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-			dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			//dxCommon->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
-
+/*dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferViewSprite);
+dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+//dxCommon->GetCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+*/
 #pragma endregion
 
 #pragma region ImGuiの描画コマンドを積む
