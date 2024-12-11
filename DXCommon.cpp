@@ -277,12 +277,9 @@ void DXCommon::InitDSV()
 {
 	depthStencilResource = CreateDepthStencilTextureResource(WinApp::kClientWidth, WinApp::kClientHeight);
 
-	// MakeDepthBuffer();
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-
-	/*D3D12_CPU_DESCRIPTOR_HANDLE*/ //dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	device->CreateDepthStencilView(
 		depthStencilResource.Get(),
