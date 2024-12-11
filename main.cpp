@@ -697,25 +697,6 @@ for (uint32_t i = 0; i < kSubdivision; ++i) {
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3; indexDataSprite[5] = 2;
 #pragma endregion
 
-#pragma region CreateDepthStencilextureResourceを作る
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = dxCommon->CreateDepthStencilTextureResource(WinApp::kClientWidth, WinApp::kClientHeight);
-#pragma endregion
-
-#pragma region DSVを構築する
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = dxCommon->CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
-
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
-	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-
-	dxCommon->GetDevice()->CreateDepthStencilView(
-		depthStencilResource.Get(),
-		&dsvDesc,
-		dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart()
-	);
-#pragma endregion
-
-
 #pragma region DepthStencilStateの設定を行う
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
 
