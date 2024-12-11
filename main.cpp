@@ -12,6 +12,7 @@
 #include "D3DResourceLeakChecker.h"
 #include "Sprite.h"
 #include "SpriteCommon.h"
+#include "TextureManager.h"
 
 #pragma comment(lib,"dxcompiler.lib")
 
@@ -222,6 +223,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	dxCommon = new DXCommon();
 	dxCommon->Initialize(winApp);
+
+	TextureManager::GetInstance()->Initialize();
 
 	SpriteCommon spriteCommon;
 	spriteCommon.Initialize(dxCommon);
@@ -1022,6 +1025,7 @@ dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGP
 	winApp->Finalize();
 	delete winApp;
 	winApp = nullptr;
+	TextureManager::GetInstance()->Finalize();
 	delete dxCommon;
 	//CloseHandle(fenceEvent);
 #pragma endregion
