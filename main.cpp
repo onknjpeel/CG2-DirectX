@@ -56,6 +56,11 @@ struct Matrix4x4 {
 	float m[4][4];
 };
 
+struct AABB {
+	Vector3 min;
+	Vector3 max;
+};
+
 struct Transform {
 	Vector3 scale;
 	Vector3 rotate;
@@ -127,6 +132,11 @@ struct Emitter {
 	uint32_t count;
 	float frequency;
 	float frequencyTime;
+};
+
+struct AccelerationField {
+	Vector3 acceleration;
+	AABB area;
 };
 #pragma endregion
 
@@ -866,6 +876,17 @@ std::list<Particle> Emit(const Emitter& emitter, std::mt19937& randomEngine) {
 	return particles;
 }
 
+bool IsCollision(const AABB& aabb, const Vector3& v) {
+	if ((aabb.min.x <= v.x && aabb.max.x >= v.x) &&
+		(aabb.min.y <= v.y && aabb.max.y >= v.y) &&
+		(aabb.min.z <= v.z && aabb.max.z >= v.z)) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 #pragma endregion
 
 struct D3DResourceLeakChecker {
@@ -1420,6 +1441,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	emitter.transform.translate = { 0.0f,0.0f,0.0f };
 	emitter.transform.rotate = { 0.0f,0.0f,0.0f };
 	emitter.transform.scale = { 1.0f,1.0f,1.0f };
+
+	AccelerationField accelerationField;
+	accelerationField.acceleration = { 15.0f,0.0f,0.0f };
+	accelerationField.area.min = { -1.0f,-1.0f,-1.0f };
+	accelerationField.area.max = { 1.0f,1.0f,1.0f };
 
 #pragma region model描画
 
@@ -2001,6 +2027,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				(*particleIterator).velocity.y = (*particleIterator).velocity.y;
 				(*particleIterator).velocity.z = (*particleIterator).velocity.z;
 
+				if (IsCollision(accelerationField.area, (*particleIterator).transform.translate)) {
+					(*particleIterator).velocity.x += accelerationField.acceleration.x * kDeltaTime;
+					(*particleIterator).velocity.y += accelerationField.acceleration.y * kDeltaTime;
+					(*particleIterator).velocity.z += accelerationField.acceleration.z * kDeltaTime;
+				}
+
 				(*particleIterator).transform.translate.x += (*particleIterator).velocity.x * kDeltaTime;
 				(*particleIterator).transform.translate.y += (*particleIterator).velocity.y * kDeltaTime;
 				(*particleIterator).transform.translate.z += (*particleIterator).velocity.z * kDeltaTime;
@@ -2079,59 +2111,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootSignature(rootSignature.Get());
 			commandList->SetPipelineState(graphicsPipelineState.Get());
 
-			//commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->IASetIndexBuffer(&indexBufferView);
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-#pragma region CBVを設定する
-			//commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-			//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-			//commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-#pragma endregion
-
-#pragma region DescriptorTableを設定する
-			//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
-#pragma endregion
-/*
-			//commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
-
-			commandList->SetGraphicsRootConstantBufferView(0, materialResourceFence->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceFence->GetGPUVirtualAddress());
-			//commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewFence);
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUFence);
-
-			//commandList->DrawInstanced(UINT(fenceData.vertices.size()), 1, 0, 0);
-*/
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourcePlane->GetGPUVirtualAddress());
-			//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourcePlane->GetGPUVirtualAddress());
-			//commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->SetGraphicsRootDescriptorTable(1, instancingSrvHandleGPU);
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUPlane);
 
 			commandList->DrawInstanced(UINT(planeData.vertices.size()), numInstance, 0, 0);
-
-#pragma region 三角形二枚描画
-			/*commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTriangle);
-			commandList->IASetIndexBuffer(&indexBufferViewTriangle);
-			//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceTriangle->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);*/
-#pragma endregion
-
-#pragma region Sprite描画
-			/*commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-			commandList->IASetIndexBuffer(&indexBufferViewSprite);
-			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);*/
-
-#pragma endregion
 
 #pragma region ImGuiの描画コマンドを積む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
