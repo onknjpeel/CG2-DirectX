@@ -3,6 +3,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include "externals/DirectXTex/DirectXTex.h"
+#include "DXCommon.h"
 
 class TextureManager
 {
@@ -11,9 +12,13 @@ public:
 
 	void Finalize();
 
-	void Initialize();
+	void Initialize(DXCommon* dxCommon);
 
 	void LoadTexture(const std::string& firePath);
+
+	uint32_t GetTextureIndexByFilePath(const std::string& filePath);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvHandleGPU(uint32_t textureIndex);
 
 private:
 	struct TextureData {
@@ -34,6 +39,8 @@ private:
 
 	std::vector<TextureData> textureDatas;
 
-	static const uint32_t kMaxSRVCount;
+	static uint32_t kSRVIndexTop;
+
+	DXCommon* dxCommon = nullptr;
 };
 

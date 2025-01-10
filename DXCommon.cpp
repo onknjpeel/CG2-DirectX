@@ -17,6 +17,8 @@ using namespace Microsoft::WRL;
 using namespace Logger;
 using namespace StringUtility;
 
+const uint32_t DXCommon::kMaxSRVCount = 512;
+
 void DXCommon::Initialize(WinApp* winApp)
 {
 	assert(winApp);
@@ -387,6 +389,10 @@ void DXCommon::PostDraw()
 {
 	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
+	// リソースバリアを設定（描画可能状態に遷移）
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	commandList->ResourceBarrier(1, &barrier);

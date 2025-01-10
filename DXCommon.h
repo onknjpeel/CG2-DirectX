@@ -82,6 +82,10 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages);
 
 	DirectX::ScratchImage LoadTexture(const std::string& filePath);
+
+public:
+	static const uint32_t kMaxSRVCount;
+
 private:
 	void InitializeFixFPS();
 

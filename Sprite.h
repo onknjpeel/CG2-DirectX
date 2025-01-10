@@ -2,6 +2,7 @@
 #include "MathEx.h"
 #include "wrl.h"
 #include <d3d12.h>
+#include <string>
 
 struct VertexData {
 	Vector4 position;
@@ -27,7 +28,7 @@ class Sprite
 {
 public:
 
-	void Initialize(SpriteCommon* spriteCommon);
+	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
 
 	void Update();
 
@@ -75,6 +76,8 @@ private:
 	float rotation = 0.0f;
 
 	Vector2 size = { 640.0f,360.0f };
+
+	uint32_t textureIndex = 0;
 
 	SpriteCommon* spriteCommon = nullptr;
 };
