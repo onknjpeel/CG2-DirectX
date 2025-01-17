@@ -31,7 +31,7 @@ VertexShaderOutput main(VertexShaderInput input,uint32_t instanceID : SV_Instanc
     VertexShaderOutput output;
     output.position = mul(input.position, gParticle[instanceID].WVP);
     output.texcoord = input.texcoord;
-    //output.normal = normalize(mul(input.normal, (float32_t3x3) gTransformationMatrices[instanceID].World));
+    output.normal = normalize(mul(input.normal, (float32_t3x3) gTransformationMatrices[instanceID].World));
     output.color = gParticle[instanceID].color;
     output.worldPosition = mul(input.position, gTransformationMatrix.World).wxy;
     return output;
