@@ -45,7 +45,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     
     float cos = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
     
-    flost32_t3 diffuse = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
+    float32_t3 diffuse = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
     
     float32_t3 specular = gDirectionalLight.color.rgb * gDirectionalLight.intensity * specularPow * float32_t3(1.0f, 1.0f, 1.0f);
     

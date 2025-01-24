@@ -1168,17 +1168,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameter[0].Descriptor.ShaderRegister = 0;
 
-	/*
 	rootParameter[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameter[1].Descriptor.ShaderRegister = 0;
-	*/
-
+	
+/*
 	rootParameter[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	rootParameter[1].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
 	rootParameter[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
-
+*/
 #pragma region DescriptorTable
 	rootParameter[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameter[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -1296,11 +1295,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region ShaderをCompileする
-	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"Particle.VS.hlsl",
+	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl",
 		L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
 	assert(vertexShaderBlob != nullptr);
 
-	Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Particle.PS.hlsl",
+	Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl",
 		L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
 	assert(pixelShaderBlob != nullptr);
 #pragma endregion
@@ -1368,7 +1367,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
 #pragma endregion
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
+	/*D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
 	instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
 	instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -1379,6 +1378,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
 	D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
 	device->CreateShaderResourceView(instancingResource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
+*/
 
 #pragma region fence読み込み
 	ModelData fenceData = LoadObjFile("resources", "fence.obj");
@@ -1425,7 +1425,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		transforms[index].scale = { 1.0f,1.0f,1.0f };
 		transforms[index].rotate = { 0.0f,0.0f,0.0f };
 		transforms[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
-	}*/
+	}
 
 	std::random_device seedGenerator;
 	std::mt19937 randomEngine(seedGenerator());
@@ -1446,7 +1446,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	AccelerationField accelerationField;
 	accelerationField.acceleration = { 15.0f,0.0f,0.0f };
 	accelerationField.area.min = { -1.0f,-1.0f,-1.0f };
-	accelerationField.area.max = { 1.0f,1.0f,1.0f };
+	accelerationField.area.max = { 1.0f,1.0f,1.0f };*/
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource = CreateBufferResource(device, sizeof(CameraForGPU));
 
@@ -1454,7 +1454,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
 
-	cameraData->worldPosition = { 0.0f,23.0f,10.0f };
+	cameraData->worldPosition = { 0.0f,0.0f,10.0f };
 
 #pragma region 球作成用変数宣言
 	uint32_t kSubdivision = 16;
@@ -1669,6 +1669,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialDataSprite->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialDataSprite->enableLighting = false;
 	materialDataSprite->uvTransform = MakeIdentity4x4();
+	materialDataSprite->shininess = 70;
 #pragma endregion
 
 #pragma region TransformationMatrix用のResourceを作る(Sprite)
@@ -1751,6 +1752,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialDataFence->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialDataFence->enableLighting = true;
 	materialDataFence->uvTransform = MakeIdentity4x4();
+	materialDataFence->shininess = 70;
 
 #pragma endregion
 
@@ -2036,7 +2038,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 worldProjectionMatrixFence = Multiply(worldMatrixFence, Multiply(viewMatrixFence, projectionMatrixFence));
 			*transformationMatrixDataFence = { worldProjectionMatrixFence,worldMatrixFence };*/
 
-
+			/*
 			Matrix4x4 worldMatrixPlane = MakeAffineMatrix(transformPlane.scale, transformPlane.rotate, transformPlane.translate);
 			Matrix4x4 cameraMatrixPlane = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrixPlane = Inverse(cameraMatrixPlane);
@@ -2109,7 +2111,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					++numInstance;
 				}
 				++particleIterator;
-			}
+			}*/
 
 #pragma region コマンドを積み込み確定させる
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -2119,13 +2121,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 			ImGui::Begin("Window");
-			ImGui::Checkbox("useBillboard", &useBillboard);
-			if (ImGui::TreeNode("Emitter")) {
-				ImGui::InputFloat("f", &emitter.frequency, 0.0f, 0.0f);
-				ImGui::InputFloat("fTime", &emitter.frequencyTime, 0.0f, 0.0f);
-				ImGui::DragFloat3("EmitterTranslate", &emitter.transform.translate.x, 0.01f, -100.0f, 100.0f);
-				ImGui::TreePop();
-			}
+			ImGui::DragFloat3("worldPosition", &cameraData->worldPosition.x);
+			ImGui::DragFloat("sinenity", &materialData->shininess);
 			ImGui::End();
 
 #pragma region ImGuiの内部コマンドを生成
@@ -2176,7 +2173,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-			commandList->SetGraphicsRootDescriptorTable(1, instancingSrvHandleGPU);
+			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
