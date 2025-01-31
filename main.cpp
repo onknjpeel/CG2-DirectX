@@ -1,8 +1,5 @@
 #include <dxgidebug.h>
-#include <vector>
-#include "externals/DirectXTex/DirectXTex.h"
 #include <fstream>
-#include <sstream>
 #include "Input.h"
 #include "WinApp.h"
 #include "DXCommon.h"
@@ -724,9 +721,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			spriteCommon.DrawSpriteCommon();
 
-			/*for (Sprite* sprite : sprites) {
+			/**/for (Sprite* sprite : sprites) {
 				sprite->Draw();
-			}*/
+			}
 
 #pragma region ImGuiの描画コマンドを積む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetCommandList());

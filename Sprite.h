@@ -81,4 +81,3 @@ private:
 
 	SpriteCommon* spriteCommon = nullptr;
 };
-

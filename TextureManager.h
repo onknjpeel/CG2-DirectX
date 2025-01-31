@@ -43,4 +43,3 @@ private:
 
 	DXCommon* dxCommon = nullptr;
 };
-

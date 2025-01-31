@@ -185,7 +185,7 @@ void DXCommon::MakeDepthBuffer()
 	assert(SUCCEEDED(hr));
 }
 
-Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible)
+ComPtr<ID3D12DescriptorHeap> DXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible)
 {
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = nullptr;
 	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc{};
@@ -401,14 +401,14 @@ void DXCommon::PostDraw()
 	hr = commandList->Close();
 	assert(SUCCEEDED(hr));
 
-	Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = { commandList };
+	Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = { commandList.Get() };
 	commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
 
 	swapChain->Present(1, 0);
 
 	fenceValue++;
 
-	commandQueue->Signal(fence.Get(), ++fenceValue);
+	commandQueue->Signal(fence.Get(), fenceValue);
 	if (fence->GetCompletedValue() != fenceValue) {
 		HANDLE event = CreateEvent(nullptr, false, false, nullptr);
 		fence->SetEventOnCompletion(fenceValue, event);
@@ -424,7 +424,7 @@ void DXCommon::PostDraw()
 	assert(SUCCEEDED(hr));
 }
 
-Microsoft::WRL::ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile)
+ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile)
 {
 #pragma region hlslファイルを読む
 	Log(ConvertString(std::format(L"Begin CompileShader, path:{}, profile:{}\n", filePath, profile)));
@@ -483,7 +483,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& fil
 #pragma endregion
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateBufferResource(size_t sizeInBytes)
+ComPtr<ID3D12Resource> DXCommon::CreateBufferResource(size_t sizeInBytes)
 {
 	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
 	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -509,7 +509,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateBufferResource(size_t siz
 	return vertexResource;
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, const DirectX::TexMetadata& metadata)
+ComPtr<ID3D12Resource> DXCommon::CreateTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, const DirectX::TexMetadata& metadata)
 {
 
 #pragma region metadataを基にResourceの設定
@@ -543,7 +543,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateTextureResource(Microsoft
 
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateDepthStencilTextureResource(int32_t width, int32_t height) {
+ComPtr<ID3D12Resource> DXCommon::CreateDepthStencilTextureResource(int32_t width, int32_t height) {
 #pragma region Resource/Heapの設定を行う
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;
@@ -580,7 +580,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::CreateDepthStencilTextureResour
 #pragma endregion
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DXCommon::UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages)
+ComPtr<ID3D12Resource> DXCommon::UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages)
 {
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresource;
