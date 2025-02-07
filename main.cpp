@@ -1432,24 +1432,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResourcePlane.Get(), &srvDescPlane, textureSrvHandleCPUPlane);
 #pragma endregion
 
-	ModelData terrainData = LoadObjFile("resources", "terrain.obj");
-
-	DirectX::ScratchImage mipImagesTerrain = LoadTexture("resources/grass.png");
-	const DirectX::TexMetadata& metadataTerrain = mipImagesTerrain.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResourceTerrain = CreateTextureResource(device, metadataTerrain);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateTerrain = UploadTextureData(textureResourceTerrain, mipImagesTerrain, device, commandList);
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDescTerrain{};
-	srvDescTerrain.Format = metadataTerrain.format;
-	srvDescTerrain.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDescTerrain.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDescTerrain.Texture2D.MipLevels = UINT(metadataTerrain.mipLevels);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUTerrain = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 6);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUTerrain = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 6);
-
-	device->CreateShaderResourceView(textureResourceTerrain.Get(), &srvDescTerrain, textureSrvHandleCPUTerrain);
-
 	/*Transform transforms[kNumInstance];
 	for (uint32_t index = 0; index < kNumInstance; ++index) {
 		transforms[index].scale = { 1.0f,1.0f,1.0f };
@@ -1948,83 +1930,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-#pragma region terrain描画
-
-#pragma region VertexResourceを生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceTerrain = CreateBufferResource(device, sizeof(VertexData) * terrainData.vertices.size());
-#pragma endregion
-
-#pragma region Material用のResourceを作る
-	Microsoft::WRL::ComPtr <ID3D12Resource> materialResourceTerrain = CreateBufferResource(device, sizeof(Material));
-
-	Material* materialDataTerrain = nullptr;
-
-	materialResourceTerrain->Map(0, nullptr, reinterpret_cast<void**>(&materialDataTerrain));
-
-	materialDataTerrain->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	materialDataTerrain->enableLighting = true;
-	materialDataTerrain->uvTransform = MakeIdentity4x4();
-	materialDataTerrain->shininess = 1.0f;
-
-#pragma endregion
-
-#pragma region TransformationMatrix用のResourceを作る
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceTerrain = CreateBufferResource(device, sizeof(TransformationMatrix));
-
-	TransformationMatrix* transformationMatrixDataTerrain = nullptr;
-
-	transformationMatrixResourceTerrain->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataTerrain));
-
-	transformationMatrixDataTerrain->WVP = MakeIdentity4x4();
-#pragma endregion
-
-#pragma region VertexBufferViewを作成
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewTerrain{};
-
-	vertexBufferViewTerrain.BufferLocation = vertexResourceTerrain->GetGPUVirtualAddress();
-
-	vertexBufferViewTerrain.SizeInBytes = UINT(sizeof(VertexData) * terrainData.vertices.size());
-
-	vertexBufferViewTerrain.StrideInBytes = sizeof(VertexData);
-#pragma endregion
-
-#pragma region Resourceにデータを書き込む(頂点データの更新)
-	VertexData* vertexDataTerrain = nullptr;
-
-	vertexResourceTerrain->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataTerrain));
-
-	std::memcpy(vertexDataTerrain, terrainData.vertices.data(), sizeof(VertexData) * terrainData.vertices.size());
-
-#pragma endregion
-
-#pragma region IndexResource
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceTerrain = CreateBufferResource(device, sizeof(uint32_t) * kSubdivision * kSubdivision * 6);
-
-	D3D12_INDEX_BUFFER_VIEW indexBufferViewTerrain{};
-
-	indexBufferViewTerrain.BufferLocation = indexResourceTerrain->GetGPUVirtualAddress();
-
-	indexBufferViewTerrain.SizeInBytes = sizeof(uint32_t) * kSubdivision * kSubdivision * 6;
-
-	indexBufferViewTerrain.Format = DXGI_FORMAT_R32_UINT;
-#pragma endregion
-
-#pragma region IndexResourceに書き込み
-	uint32_t* indexDataTerrain = nullptr;
-	indexResourceTerrain->Map(0, nullptr, reinterpret_cast<void**>(&indexDataTerrain));
-	for (uint32_t i = 0; i < kSubdivision; ++i) {
-		for (uint32_t j = 0; j < kSubdivision; ++j) {
-			uint32_t start = (i * kSubdivision + j) * 6;
-			uint32_t a = i * (kSubdivision + 1) + j;
-			indexDataTerrain[start] = a; indexDataTerrain[start + 1] = a + kSubdivision + 1; indexDataTerrain[start + 2] = a + 1;
-			indexDataTerrain[start + 3] = a + kSubdivision + 1; indexDataTerrain[start + 4] = a + kSubdivision + 2; indexDataTerrain[start + 5] = a + 1;
-		}
-	}
-
-#pragma endregion
-
-#pragma endregion
-
 #pragma region CreateDepthStencilextureResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
 #pragma endregion
@@ -2319,16 +2224,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
 
 			commandList->DrawInstanced(kVertexCount, 1, 0, 0);
-
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTerrain);
-			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceTerrain->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPUTerrain);
-
-			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(5, pointLightResource->GetGPUVirtualAddress());
-
-			commandList->DrawInstanced(UINT(terrainData.vertices.size()), 1, 0, 0);
 
 #pragma region ImGuiの描画コマンドを積む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
