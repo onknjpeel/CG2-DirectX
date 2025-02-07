@@ -10,7 +10,7 @@ class Input
 {
 public:
 
-	template <class T> using ComPtr = Microsoft::WRL::ComPtr<T>;
+	template <class T> using ComPtr = ComPtr<T>;
 
 public:
 	void Initialize(WinApp* winApp);

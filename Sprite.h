@@ -58,10 +58,10 @@ private:
 
 private:
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource = nullptr;
+	ComPtr<ID3D12Resource> vertexResource = nullptr;
+	ComPtr<ID3D12Resource> indexResource = nullptr;
+	ComPtr<ID3D12Resource> materialResource = nullptr;
+	ComPtr<ID3D12Resource> transformationMatrixResource = nullptr;
 
 	VertexData* vertexData = nullptr;
 	uint32_t* indexData = nullptr;

@@ -58,7 +58,7 @@ void TextureManager::LoadTexture(const std::string& filePath)
 	textureData.filepath = filePath;
 	textureData.metadata = mipImages.GetMetadata();
 	textureData.resource = dxCommon->CreateTextureResource(dxCommon->GetDevice(), textureData.metadata);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediate = dxCommon->UploadTextureData(textureData.resource, mipImages);
+	ComPtr<ID3D12Resource> intermediate = dxCommon->UploadTextureData(textureData.resource, mipImages);
 
 	uint32_t srvIndex = static_cast<uint32_t>(textureDatas.size() - 1) + kSRVIndexTop;
 

@@ -17,13 +17,13 @@ private:
 	void CreateGraphicsPipelineState();
 
 private:
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
+	ComPtr<ID3D12RootSignature> rootSignature = nullptr;
 
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
 
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
+	ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
 
 	DXCommon* dxCommon_;
 };
