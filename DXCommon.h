@@ -64,9 +64,9 @@ public:
 
 	void PostDraw();
 
-	ID3D12Device* GetDevice()const { return device.Get(); }
+	Microsoft::WRL::ComPtr<ID3D12Device> GetDevice()const { return device.Get(); }
 
-	ID3D12GraphicsCommandList* GetCommandList()const { return commandList.Get(); }
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCommandList()const { return commandList.Get(); }
 
 	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
 		const std::wstring& filePath,
@@ -102,7 +102,7 @@ private:;
 
 	   DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
 
-	   ID3D12Resource* resource = nullptr;
+	   Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
 
 	   uint32_t descriptorSizeSRV;
 	   uint32_t descriptorSizeRTV;
@@ -129,9 +129,9 @@ private:;
 	   D3D12_VIEWPORT viewport{};
 	   D3D12_RECT scissorRect{};
 
-	   IDxcUtils* dxcUtils = nullptr;
-	   IDxcCompiler3* dxcCompiler = nullptr;
-	   IDxcIncludeHandler* includeHandler = nullptr;
+	   Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils = nullptr;
+	   Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler = nullptr;
+	   Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler = nullptr;
 
 	   D3D12_RESOURCE_BARRIER barrier{};
 

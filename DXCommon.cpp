@@ -370,8 +370,8 @@ void DXCommon::PreDraw()
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	// SRV用のデスクリプタヒープを指定
-	ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
-	commandList->SetDescriptorHeaps(1, descriptorHeaps);
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = { srvDescriptorHeap.Get() };
+	commandList->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf());
 
 	// ビューポート領域の設定
 	commandList->RSSetViewports(1, &viewport);
@@ -420,14 +420,14 @@ Microsoft::WRL::ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& fil
 #pragma region hlslファイルを読む
 	Log(ConvertString(std::format(L"Begin CompileShader, path:{}, profile:{}\n", filePath, profile)));
 
-	IDxcBlobEncoding* shaderSource = nullptr;
-	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
+	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
+	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, shaderSource.GetAddressOf());
 
 	assert(SUCCEEDED(hr));
 
 	DxcBuffer shaderSourceBuffer;
-	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
-	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
+	shaderSourceBuffer.Ptr = shaderSource.Get()->GetBufferPointer();
+	shaderSourceBuffer.Size = shaderSource.Get()->GetBufferSize();
 	shaderSourceBuffer.Encoding = DXC_CP_UTF8;
 #pragma endregion
 
@@ -441,12 +441,12 @@ Microsoft::WRL::ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& fil
 		L"-Zpr"
 	};
 
-	IDxcResult* shaderResult = nullptr;
+	Microsoft::WRL::ComPtr<IDxcResult> shaderResult = nullptr;
 	hr = dxcCompiler->Compile(
 		&shaderSourceBuffer,
 		arguments,
 		_countof(arguments),
-		includeHandler,
+		includeHandler.Get(),
 		IID_PPV_ARGS(&shaderResult)
 	);
 
@@ -455,7 +455,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& fil
 
 #pragma region 警告・エラーが出ていないか確認する
 	IDxcBlobUtf8* shaderError = nullptr;
-	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
+	shaderResult.Get()->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
 	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
 		Log(shaderError->GetStringPointer());
 
@@ -465,7 +465,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> DXCommon::CompileShader(const std::wstring& fil
 
 #pragma region Compile結果を受け取って返す
 	Microsoft::WRL::ComPtr <IDxcBlob> shaderBlob = nullptr;
-	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
+	hr = shaderResult.Get()->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 	assert(SUCCEEDED(hr));
 
 	Log(ConvertString(std::format(L"Compile Succeeded, path:{}, profile:{}\n", filePath, profile)));

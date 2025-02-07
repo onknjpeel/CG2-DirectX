@@ -1,13 +1,4 @@
-#define _USE_MATH_DEFINES
-
-#include <dxgidebug.h>
-#include <cmath>
-#include <math.h>
-#include <vector>
-#include "externals/DirectXTex/DirectXTex.h"
-#include "externals/DirectXTex/d3dx12.h"
 #include <fstream>
-#include <sstream>
 #include "Input.h"
 #include "WinApp.h"
 #include "DXCommon.h"
@@ -1139,7 +1130,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region ImGuiの描画コマンドを積む
-			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetCommandList());
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetCommandList().Get());
 #pragma endregion
 
 #pragma endregion
