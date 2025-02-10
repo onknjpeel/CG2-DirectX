@@ -24,6 +24,8 @@ DXCommon::~DXCommon()
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 #pragma endregion
+
+	CloseHandle(fenceEvent);
 }
 
 void DXCommon::Initialize(WinApp* winApp)

@@ -1150,7 +1150,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete winApp;
 	winApp = nullptr;
 	delete dxCommon;
-	//CloseHandle(fenceEvent);
 #pragma endregion
 
 #pragma region ReportLiveObjects
