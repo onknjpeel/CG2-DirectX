@@ -68,6 +68,8 @@ public:
 	virtual void SetModel() = 0;
 	virtual void DrawModel() = 0;
 	virtual void SetTransformMatData(TransformationMatrix* matData) = 0;
+	bool GetDraw() { return isDraw; }
+	virtual void SetDraw(bool flag) = 0;
 
 protected:
 #pragma region マテリアルデータを読む関数
@@ -135,4 +137,5 @@ protected:
 	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
 	uint32_t* indexData = nullptr;
 
+	bool isDraw = true;
 };

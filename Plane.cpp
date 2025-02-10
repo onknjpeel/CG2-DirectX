@@ -1,9 +1,9 @@
-#include "Axis.h"
+#include "Plane.h"
 #include "externals/imgui/imgui.h"
 
-void Axis::LoadModel()
+void Plane::LoadModel()
 {
-	modelData = LoadObjFile("resources", "axis.obj");
+	modelData = LoadObjFile("resources", "plane.obj");
 
 	mipImages = dxCommon->LoadTexture("resources/uvChecker.png");
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
@@ -20,7 +20,7 @@ void Axis::LoadModel()
 	dxCommon->GetDevice()->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU);
 }
 
-void Axis::CreateModel()
+void Plane::CreateModel()
 {
 	directionalLightResource = dxCommon->CreateBufferResource(sizeof(DirectionalLight));
 
@@ -90,7 +90,7 @@ void Axis::CreateModel()
 #pragma endregion
 }
 
-void Axis::SetModel()
+void Plane::SetModel()
 {
 	dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferView);
 	dxCommon->GetCommandList()->IASetIndexBuffer(&indexBufferView);
@@ -102,10 +102,10 @@ void Axis::SetModel()
 	dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 }
 
-void Axis::DrawModel()
+void Plane::DrawModel()
 {
 	if (isDraw) {
-		ImGui::Begin("model");
+		ImGui::Begin("plane");
 		if (ImGui::TreeNode("DirectionalLight")) {
 			ImGui::DragFloat3("direction", &directionalLightData->direction.x, 0.01f);
 			directionalLightData->direction = Normalize(directionalLightData->direction);

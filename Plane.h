@@ -1,7 +1,7 @@
 #pragma once
 #include "IModel.h"
 
-class Axis :public IModel {
+class Plane :public IModel {
 public:
 	void Init(DXCommon* pointer) {
 		dxCommon = pointer;
