@@ -12,6 +12,8 @@
 class DXCommon
 {
 public:
+	~DXCommon();
+
 	void Initialize(WinApp* winApp);
 
 	void InitDevice();

@@ -17,6 +17,15 @@ using namespace Microsoft::WRL;
 using namespace Logger;
 using namespace StringUtility;
 
+DXCommon::~DXCommon()
+{
+#pragma region ImGuiの終了処理
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+#pragma endregion
+}
+
 void DXCommon::Initialize(WinApp* winApp)
 {
 	assert(winApp);

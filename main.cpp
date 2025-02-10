@@ -1140,12 +1140,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 	}
 
-#pragma region ImGuiの終了処理
-	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-#pragma endregion
-
 	std::string str0{ "STRING!!!" };
 
 	std::string str1{ std::to_string(10) };
